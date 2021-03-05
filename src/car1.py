@@ -223,6 +223,8 @@ if __name__ == '__main__':
         # deserialize it 
         path = json.loads(message)
         
+        racecar_env.update_path(path)
+        
         # do pure pursuit
         obs, step_reward, done, info = racecar_env.step(np.array([[steer, speed],
                                                                   [0.0, 0.5]]))

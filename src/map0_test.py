@@ -436,5 +436,7 @@ if __name__ == '__main__':
                                     work['tlad'], work['vgain'])
         print(speed, steer)
         
+        racecar_env.update_path(path)
+        
         lap_time += step_reward
         racecar_env.render(mode='human')
