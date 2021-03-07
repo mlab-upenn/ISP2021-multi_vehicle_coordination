@@ -236,10 +236,10 @@ class PurePursuitPlanner:
             # x, y
             current_waypoint[0:2] = wpts[i2, :]
             # speed
-            current_waypoint[2] = 3.0
+            current_waypoint[2] = 2.0
             return current_waypoint
         elif nearest_dist < self.max_reacquire:
-            return np.append(wpts[i, :], 3.0)
+            return np.append(wpts[i, :], 2.0)
         else:
             return None
 
@@ -261,7 +261,7 @@ class PurePursuitPlanner:
                 ):
                     lookahead_point[0] = self.waypoints[i, 0]
                     lookahead_point[1] = self.waypoints[i, 1]
-                    lookahead_point[2] = 3.0
+                    lookahead_point[2] = 4.0
                     break
         # print("waypoints matrix", self.waypoints)
         # print("lookahead", lookahead_point)
@@ -274,9 +274,6 @@ class PurePursuitPlanner:
         speed = vgain * speed
 
         return speed, steering_angle
-
-
-
 
 
 def get_goal_point(goal_car_curr_pos):
@@ -295,17 +292,17 @@ if __name__ == "__main__":
     work = {
         "mass": 3.463388126201571,
         "lf": 0.15597534362552312,
-        "tlad": 0.60,
+        "tlad": 0.70,
         "vgain": 0.90338203837889,
     }
-    
+
     context = zmq.Context()
 
     #  Socket to talk to server
     print("Connecting to hello world server…")
     socket = context.socket(zmq.REQ)
     socket.connect("tcp://localhost:5555")
-    
+
     with open("config_example_map.yaml") as file:
         conf_dict = yaml.load(file, Loader=yaml.FullLoader)
     conf = Namespace(**conf_dict)
@@ -326,33 +323,38 @@ if __name__ == "__main__":
     start = time.time()
 
     while not done:
-        
+
         # serialize the observation data into JSON
-        socket.send_string(json.dumps({'x_curr':obs['poses_x'][0],
-                                       'y_curr':obs['poses_y'][0],
-                                       'theta_curr':obs['poses_theta'][0],
-                                       'oppx_curr':obs['poses_x'][1],
-                                       'oppy_curr':obs['poses_y'][1],
-                                       'opptheta_curr':obs['poses_theta'][1],
-                                       'scans':(obs['scans'][0]).tolist()}))
-        
-        
+        socket.send_string(
+            json.dumps(
+                {
+                    "x_curr": obs["poses_x"][0],
+                    "y_curr": obs["poses_y"][0],
+                    "theta_curr": obs["poses_theta"][0],
+                    "oppx_curr": obs["poses_x"][1],
+                    "oppy_curr": obs["poses_y"][1],
+                    "opptheta_curr": obs["poses_theta"][1],
+                    "scans": (obs["scans"][0]).tolist(),
+                }
+            )
+        )
+
         # receive the path from the master node
         message = socket.recv()
-        
+
         # deserialize it
         trajectory_1 = json.loads(message)
-        
-        if np.size(trajectory_1) != 0:
-            env.update_path(trajectory_1)
-        # print("position", obs["poses_x"][0], obs["poses_y"][0])
-        # print("goal_point", goal_point)
-        # print("generate path", trajectory_1)
-        
+
+        # if np.size(trajectory_1) != 0:
+        #     env.update_path(trajectory_1)
+        # # print("position", obs["poses_x"][0], obs["poses_y"][0])
+        # # print("goal_point", goal_point)
+        # # print("generate path", trajectory_1)
+
         # convert 1d list to 2d np array
         nptraj_1 = np.array(trajectory_1)
-        nptraj_1 = np.reshape(nptraj_1, (-1,2))
-        
+        nptraj_1 = np.reshape(nptraj_1, (-1, 2))
+
         planner_1.update_paths(nptraj_1)
         # print(111)
         speed_1, steer_1 = planner_1.plan(

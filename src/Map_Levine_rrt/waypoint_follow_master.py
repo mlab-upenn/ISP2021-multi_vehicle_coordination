@@ -43,33 +43,38 @@ class RRT:
     def __init__(self, obs, goal_pt, rrt_star):
 
         self.rrt_star = rrt_star
-        self.x_curr = obs['x_curr']
-        self.y_curr = obs['y_curr']
-        self.theta_curr = obs['theta_curr'] % (2 * math.pi)
-        self.oppx_curr = obs['oppx_curr']
-        self.oppy_curr = obs['oppy_curr']
-        self.opptheta_curr = obs['opptheta_curr'] % (2 * math.pi)
+        self.x_curr = obs["x_curr"]
+        self.y_curr = obs["y_curr"]
+        self.theta_curr = obs["theta_curr"] % (2 * math.pi)
+        self.oppx_curr = obs["oppx_curr"]
+        self.oppy_curr = obs["oppy_curr"]
+        self.opptheta_curr = obs["opptheta_curr"] % (2 * math.pi)
         self.start = Node(self.x_curr, self.y_curr, None, True)
         self.start.cost = 0.0
         self.goal_pt = goal_pt
         # create an occupancy grid
         self.occupancy_grids_prior = np.ones((500, 200), dtype=bool)
         # set the occupancy grid according to knowledge about the levine hall
-        for i in range(0, 2):  # right wall
-            for j in range(0, self.occupancy_grids_prior.shape[0]):
-                self.occupancy_grids_prior[j, i] = False
-        for i in range(197, self.occupancy_grids_prior.shape[1]):  # left wall
-            for j in range(0, self.occupancy_grids_prior.shape[0]):
-                self.occupancy_grids_prior[j, i] = False
-        for i in range(0, self.occupancy_grids_prior.shape[1]):  # bot wall
-            for j in range(0, 6):
-                self.occupancy_grids_prior[j, i] = False
-        for i in range(0, self.occupancy_grids_prior.shape[1]):  # upper wall
-            for j in range(491, self.occupancy_grids_prior.shape[0]):
-                self.occupancy_grids_prior[j, i] = False
-        for i in range(22, 178):  # inner parts
-            for j in range(24, 473):
-                self.occupancy_grids_prior[j, i] = False
+        # for i in range(0, 2):  # right wall
+        #     for j in range(0, self.occupancy_grids_prior.shape[0]):
+        #         self.occupancy_grids_prior[j, i] = False
+        # for i in range(197, self.occupancy_grids_prior.shape[1]):  # left wall
+        #     for j in range(0, self.occupancy_grids_prior.shape[0]):
+        #         self.occupancy_grids_prior[j, i] = False
+        # for i in range(0, self.occupancy_grids_prior.shape[1]):  # bot wall
+        #     for j in range(0, 6):
+        #         self.occupancy_grids_prior[j, i] = False
+        # for i in range(0, self.occupancy_grids_prior.shape[1]):  # upper wall
+        #     for j in range(491, self.occupancy_grids_prior.shape[0]):
+        #         self.occupancy_grids_prior[j, i] = False
+        # for i in range(22, 178):  # inner parts
+        #     for j in range(24, 473):
+        #         self.occupancy_grids_prior[j, i] = False
+        self.occupancy_grids_prior[:, 0:2] = False
+        self.occupancy_grids_prior[:, 197:] = False
+        self.occupancy_grids_prior[0:6, :] = False
+        self.occupancy_grids_prior[491:, :] = False
+        self.occupancy_grids_prior[24:473, 22:178] = False
 
         self.occupancy_grids = self.occupancy_grids_prior
 
@@ -94,16 +99,16 @@ class RRT:
     # Returns:
     #
     def update_grids(self, obs, goal_pts):
-        scan_msg = np.array(obs['scans'])
+        scan_msg = np.array(obs["scans"])
         self.goal_pt = goal_pts
         self.occupancy_grids = copy.deepcopy(self.occupancy_grids_prior)
         angle_min = -3.14159
         angle_increment = 0.00582316
         angle_max = 3.14159
         rear_to_lidar = 0.29275
-        self.x_curr = obs['x_curr']
-        self.y_curr = obs['y_curr']
-        self.theta_curr = obs['theta_curr']
+        self.x_curr = obs["x_curr"]
+        self.y_curr = obs["y_curr"]
+        self.theta_curr = obs["theta_curr"]
         x_lidar = self.x_curr + rear_to_lidar * math.cos(self.theta_curr)
         y_lidar = self.y_curr + rear_to_lidar * math.sin(self.theta_curr)
         for i in range(scan_msg.shape[0]):
@@ -115,14 +120,23 @@ class RRT:
                 y_obstacle = y_lidar + distance * math.sin(global_angle)
                 grid_coordinates = self.convert_frame(x_obstacle, y_obstacle)
                 for j in range(
-                    max(grid_coordinates[0] - 6, 0),
-                    min(grid_coordinates[0] + 7, self.occupancy_grids.shape[0]),
+                    max(grid_coordinates[0] - 4, 0),
+                    min(grid_coordinates[0] + 5, self.occupancy_grids.shape[0]),
                 ):
                     for k in range(
-                        max(grid_coordinates[1] - 6, 0),
-                        min(grid_coordinates[1] + 7, self.occupancy_grids.shape[1]),
+                        max(grid_coordinates[1] - 4, 0),
+                        min(grid_coordinates[1] + 5, self.occupancy_grids.shape[1]),
                     ):
                         self.occupancy_grids[j, k] = False
+
+                # self.occupancy_grids[
+                #     int(max(grid_coordinates[0] - 3, 0)) : int(
+                #         min(grid_coordinates[0] + 4, self.occupancy_grids.shape[0])
+                #     ),
+                #     int(max(grid_coordinates[1] - 3, 0)) : int(
+                #         min(grid_coordinates[1] + 4, self.occupancy_grids.shape[1])
+                #     ),
+                # ] = False
 
     # The RRT main loop happens here
     # Args:
@@ -134,7 +148,7 @@ class RRT:
         tree = [self.start]  # tree as a list
         path = []  # vector to store the final path
         # each loop creates a new sample in the space, generate up to MAX_ITERATION samples due to on-board computation constraints
-        for i in range(0, MAX_ITER):
+        for i in range(MAX_ITER):
             sampled_pt = self.sample()  # sample the free space
             nearest_node_idx = self.nearest(
                 tree, sampled_pt
@@ -406,49 +420,49 @@ if __name__ == "__main__":
         "tlad": 0.60,
         "vgain": 0.90338203837889,
     }
-    
-     # start up the master node server
+
+    # start up the master node server
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:5555")
-    
+
     laptime = 0.0
     start = time.time()
-    
+
     # receive state of cars from car node
     message = socket.recv()
-    
+
     # deserialize json messages
     obs = json.loads(message)
-    
+
     rrt_1 = RRT(obs, [0, 0], True)
-    
-    empty = [0,0,0,0]
-    
+
+    empty = [0, 0, 0, 0]
+
     socket.send_string(json.dumps(empty))
 
     while True:
-        
+
         # receive state of cars from car node
         message = socket.recv()
-        
+
         # deserialize json messages
         obs = json.loads(message)
-        
+
         # calculate goal points
-        if obs['x_curr'] <= 7.00 and obs['y_curr'] <= 2.34:
-            goal_point = [obs['x_curr'] + 2.30, -0.145]
-        elif obs['x_curr'] > 7.00 and obs['y_curr'] <= 6.15:
-            goal_point = [9.575, obs['y_curr'] + 2.30]
-        elif obs['x_curr'] >= -11.26 and obs['y_curr'] > 6.15:
-            goal_point = [obs['x_curr'] - 2.30, 8.65]
-        elif obs['x_curr'] < -11.26 and obs['y_curr'] > 2.34:
-            goal_point = [-13.79, obs['y_curr'] - 2.30]
-                    
+        if obs["x_curr"] <= 7.00 and obs["y_curr"] <= 2.34:
+            goal_point = [obs["x_curr"] + 2.30, -0.145]
+        elif obs["x_curr"] > 7.00 and obs["y_curr"] <= 6.15:
+            goal_point = [9.575, obs["y_curr"] + 2.30]
+        elif obs["x_curr"] >= -11.26 and obs["y_curr"] > 6.15:
+            goal_point = [obs["x_curr"] - 2.30, 8.65]
+        elif obs["x_curr"] < -11.26 and obs["y_curr"] > 2.34:
+            goal_point = [-13.79, obs["y_curr"] - 2.30]
+
         rrt_1.update_grids(obs, goal_point)
         trajectory_1 = rrt_1.find_path()
-        
+
         # send calculate path back to car
         socket.send_string(json.dumps(trajectory_1.tolist()))
-        
+
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
