@@ -112,6 +112,7 @@ class RRT:
         x_lidar = self.x_curr + rear_to_lidar * math.cos(self.theta_curr)
         y_lidar = self.y_curr + rear_to_lidar * math.sin(self.theta_curr)
         for i in range(scan_msg.shape[0]):
+<<<<<<< HEAD
             if (
                 angle_min + angle_increment * i >= -0.78540
                 and angle_min + angle_increment * i <= 0.78540
@@ -126,6 +127,22 @@ class RRT:
                     for j in range(
                         max(grid_coordinates[0] - 4, 0),
                         min(grid_coordinates[0] + 5, self.occupancy_grids.shape[0]),
+=======
+            if (not math.isinf(scan_msg[i])) and (not math.isnan(scan_msg[i])):
+                distance = scan_msg[i]
+                local_angle = angle_min + angle_increment * i
+                global_angle = local_angle + self.theta_curr
+                x_obstacle = x_lidar + distance * math.cos(global_angle)
+                y_obstacle = y_lidar + distance * math.sin(global_angle)
+                grid_coordinates = self.convert_frame(x_obstacle, y_obstacle)
+                for j in range(
+                    max(grid_coordinates[0] - 4, 0),
+                    min(grid_coordinates[0] + 5, self.occupancy_grids.shape[0]),
+                ):
+                    for k in range(
+                        max(grid_coordinates[1] - 4, 0),
+                        min(grid_coordinates[1] + 5, self.occupancy_grids.shape[1]),
+>>>>>>> 057bb9fe935e85860404e9c55d3591a545109156
                     ):
                         for k in range(
                             max(grid_coordinates[1] - 4, 0),
@@ -141,6 +158,15 @@ class RRT:
                     #         min(grid_coordinates[1] + 4, self.occupancy_grids.shape[1])
                     #     ),
                     # ] = False
+
+                # self.occupancy_grids[
+                #     int(max(grid_coordinates[0] - 3, 0)) : int(
+                #         min(grid_coordinates[0] + 4, self.occupancy_grids.shape[0])
+                #     ),
+                #     int(max(grid_coordinates[1] - 3, 0)) : int(
+                #         min(grid_coordinates[1] + 4, self.occupancy_grids.shape[1])
+                #     ),
+                # ] = False
 
     # The RRT main loop happens here
     # Args:

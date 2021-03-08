@@ -345,8 +345,13 @@ if __name__ == "__main__":
         # deserialize it
         trajectory_1 = json.loads(message)
 
+<<<<<<< HEAD
         if np.size(trajectory_1) != 0:
             env.update_path(trajectory_1)
+=======
+        # if np.size(trajectory_1) != 0:
+        #     env.update_path(trajectory_1)
+>>>>>>> 057bb9fe935e85860404e9c55d3591a545109156
         # # print("position", obs["poses_x"][0], obs["poses_y"][0])
         # # print("goal_point", goal_point)
         # # print("generate path", trajectory_1)
