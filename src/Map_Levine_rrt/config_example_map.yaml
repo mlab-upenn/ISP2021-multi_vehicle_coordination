@@ -12,12 +12,12 @@ sx: -3.0
 sy: 0.0
 stheta: 0.0
 
-oppx: 1.0
-oppy: -0.5
+oppx: 0.0
+oppy: 0.0
 opptheta: 0.0
 
 # raceline path and indices
-wpt_path: './data_n.csv'
+wpt_path: './data.csv'
 wpt_delim: ','
 wpt_rowskip: 0
 wpt_xind: 0

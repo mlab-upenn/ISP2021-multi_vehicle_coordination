@@ -379,5 +379,5 @@ if __name__ == "__main__":
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
         laptime += step_reward
-        env.render(mode="human")
+        env.render(mode="human_fast")
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
