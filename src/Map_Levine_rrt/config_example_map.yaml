@@ -8,11 +8,11 @@ map_path: './levine_blocked'
 map_ext: '.pgm'
 
 # starting pose for map
-sx: 0.0
+sx: -3.0
 sy: 0.0
 stheta: 0.0
 
-oppx: -3.0
+oppx: 0.0
 oppy: 0.0
 opptheta: 0.0
 
