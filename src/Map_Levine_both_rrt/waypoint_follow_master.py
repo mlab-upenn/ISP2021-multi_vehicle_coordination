@@ -7,6 +7,7 @@ import math
 import copy
 import json
 import zmq
+from multiprocessing.pool import ThreadPool
 
 from numba import njit
 
@@ -15,7 +16,7 @@ Planner Helpers
 """
 
 # RRT params
-MAX_ITER = 100
+MAX_ITER = 50
 STEER_LENGTH = 0.3
 TERMINATE_LENGTH = 0.2
 ETA = 0.6
@@ -40,18 +41,15 @@ class Node:
 
 
 class RRT:
-    def __init__(self, obs, goal_pt, rrt_star):
+    def __init__(self, obs, rrt_star):
 
         self.rrt_star = rrt_star
-        self.x_curr = obs["x_curr"]
-        self.y_curr = obs["y_curr"]
-        self.theta_curr = obs["theta_curr"] % (2 * math.pi)
-        self.oppx_curr = obs["oppx_curr"]
-        self.oppy_curr = obs["oppy_curr"]
-        self.opptheta_curr = obs["opptheta_curr"] % (2 * math.pi)
+        self.x_curr = obs[0]
+        self.y_curr = obs[1]
+        self.theta_curr = obs[2] % (2 * math.pi)
         self.start = Node(self.x_curr, self.y_curr, None, True)
         self.start.cost = 0.0
-        self.goal_pt = goal_pt
+        self.goal_pt = self.calc_goal_pt()
         # create an occupancy grid
         self.occupancy_grids_prior = np.ones((500, 200), dtype=bool)
         # set the occupancy grid according to knowledge about the levine hall
@@ -98,17 +96,18 @@ class RRT:
     #    goal_pts: set goal points
     # Returns:
     #
-    def update_grids(self, obs, goal_pts):
-        scan_msg = np.array(obs["ego_scans"])
-        self.goal_pt = goal_pts
+#    @njit(fastmath=False, cache=True)
+    def update_grids(self, obs):
+        scan_msg = np.array(obs[3])
+        self.goal_pt = self.calc_goal_pt()
         self.occupancy_grids = copy.deepcopy(self.occupancy_grids_prior)
         angle_min = -3.14159
         angle_increment = 0.00582316
         angle_max = 3.14159
         rear_to_lidar = 0.29275
-        self.x_curr = obs["x_curr"]
-        self.y_curr = obs["y_curr"]
-        self.theta_curr = obs["theta_curr"]
+        self.x_curr = obs[0]
+        self.y_curr = obs[1]
+        self.theta_curr = obs[2]
         x_lidar = self.x_curr + rear_to_lidar * math.cos(self.theta_curr)
         y_lidar = self.y_curr + rear_to_lidar * math.sin(self.theta_curr)
         for i in range(scan_msg.shape[0]):
@@ -142,10 +141,23 @@ class RRT:
                     #     ),
                     # ] = False
 
+    def calc_goal_pt(self):
+        # calculate goal points
+        if self.x_curr <= 7.00 and self.y_curr <= 2.34:
+            goal_point = [self.x_curr + 2.30, -0.145]
+        elif self.x_curr > 7.00 and self.y_curr <= 6.15:
+            goal_point = [9.575, self.y_curr + 2.30]
+        elif self.x_curr >= -11.26 and self.y_curr > 6.15:
+            goal_point = [self.x_curr - 2.30, 8.65]
+        elif self.x_curr < -11.26 and self.y_curr > 2.34:
+            goal_point = [-13.79, self.y_curr - 2.30]
+        return goal_point
+
     # The RRT main loop happens here
     # Args:
     #
     # Returns:
+#    @njit(fastmath=False, cache=True)
     def find_path(self):
         self.start = Node(self.x_curr, self.y_curr, None, True)
         self.start.cost = 0.0
@@ -260,6 +272,7 @@ class RRT:
     #     sampled_point ([x, y]): the sampled point in free space
     # Returns:
     #     nearest_node (int): index of nearest node on the tree
+#    @njit(fastmath=False, cache=True)
     def nearest(self, tree, sampled_pt):
         nearest_node = 0
         min_dist = (tree[0].x - sampled_pt[0]) ** 2 + (tree[0].y - sampled_pt[1]) ** 2
@@ -299,6 +312,7 @@ class RRT:
     #    new_node (Node): new node created from steering
     # Returns:
     #    collision (bool): true if in collision, false otherwise
+#    @njit(fastmath=False, cache=True)
     def check_collision(self, nearest_node, new_node):
         collision = False
         for i in range(100):
@@ -310,27 +324,6 @@ class RRT:
                 collision = True
                 break
         return collision
-
-    def get_opp_car_pts(self):
-        car_pts_arr = np.array(
-            [
-                [self.oppx_curr + CAR_LENGTH, self.oppy_curr + CAR_WIDTH],
-                [self.oppx_curr - CAR_LENGTH, self.oppy_curr + CAR_WIDTH],
-                [self.oppx_curr - CAR_LENGTH, self.oppy_curr - CAR_WIDTH],
-                [self.oppx_curr + CAR_LENGTH, self.oppy_curr - CAR_WIDTH],
-            ]
-        )
-        rotm = np.array(
-            [
-                [np.cos(self.theta_curr), -np.sin(self.theta_curr)],
-                [np.sin(self.theta_curr), np.cos(self.theta_curr)],
-            ]
-        )
-        new_car_pts_arr = []
-        for i in range(0, 4):
-            new_car_pts_arr.append(np.dot(rotm, car_pts_arr[i]))
-
-        return new_car_pts_arr
 
     # This method checks if the latest node added to the tree is close
     # enough (defined by goal_threshold) to the goal so we can terminate
@@ -356,6 +349,7 @@ class RRT:
     # Returns:
     #   path (list of nodes): the vector that represents the order of
     #      of the nodes traversed as the found path
+#    @njit(fastmath=False, cache=True)
     def backtrack_path(self, tree, latest_node):
         found_path = []
         next_node = tree[latest_node.parent]
@@ -433,18 +427,8 @@ if __name__ == "__main__":
     laptime = 0.0
     start = time.time()
 
-    # receive state of cars from car node
-    message = socket.recv()
 
-    # deserialize json messages
-    obs = json.loads(message)
-
-    rrt_1 = RRT(obs, [0, 0], True)
-    rrt_2 = RRT(obs, [0, 0], True)
-
-    empty = [0, 0, 0, 0]
-
-    socket.send_string(json.dumps(empty))
+    pool = ThreadPool(processes=2)
 
     while True:
 
@@ -453,21 +437,25 @@ if __name__ == "__main__":
 
         # deserialize json messages
         obs = json.loads(message)
-
-        # calculate goal points
-        if obs["x_curr"] <= 7.00 and obs["y_curr"] <= 2.34:
-            goal_point = [obs["x_curr"] + 2.30, -0.145]
-        elif obs["x_curr"] > 7.00 and obs["y_curr"] <= 6.15:
-            goal_point = [9.575, obs["y_curr"] + 2.30]
-        elif obs["x_curr"] >= -11.26 and obs["y_curr"] > 6.15:
-            goal_point = [obs["x_curr"] - 2.30, 8.65]
-        elif obs["x_curr"] < -11.26 and obs["y_curr"] > 2.34:
-            goal_point = [-13.79, obs["y_curr"] - 2.30]
-
-        rrt_1.update_grids(obs, goal_point)
+        
+        rrt_1 = RRT(obs[0], False)
+        rrt_2 = RRT(obs[1], False)
+        
+        rrt_1.update_grids(obs[0])
+        rrt_2.update_grids(obs[1])
+        
+        trajectory_1 = None
+        trajectory_2 = None
+        
+#        async_result1 = pool.apply_async(rrt_1.find_path, ())
+#        async_result2 = pool.apply_async(rrt_2.find_path, ())
+#            
+#        trajectory_1 = async_result1.get()
+#        trajectory_2 = async_result2.get()
         trajectory_1 = rrt_1.find_path()
+        trajectory_2 = rrt_2.find_path()
 
         # send calculate path back to car
-        socket.send_string(json.dumps(trajectory_1.tolist()))
+        socket.send_string(json.dumps([trajectory_1.tolist(),trajectory_2.tolist()]))
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)

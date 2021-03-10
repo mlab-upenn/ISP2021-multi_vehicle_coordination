@@ -325,18 +325,26 @@ if __name__ == "__main__":
     while not done:
 
         # serialize the observation data into JSON
+        # need to store as array b/c njit cannot parse dict
+        # x_curr = 0
+        # y_curr = 1
+        # theta_curr = 2
+        # ego_scans = 3
         socket.send_string(
-            json.dumps(
-                {
-                    "x_curr": obs["poses_x"][0],
-                    "y_curr": obs["poses_y"][0],
-                    "theta_curr": obs["poses_theta"][0],
-                    "ego_scans": (obs["scans"][0]).tolist(),
-                    "oppx_curr": obs["poses_x"][1],
-                    "oppy_curr": obs["poses_y"][1],
-                    "opptheta_curr": obs["poses_theta"][1],
-                    "opp_scans": (obs["scans"][1]).tolist(),
-                }
+            json.dumps([
+                [
+                    obs["poses_x"][0],
+                    obs["poses_y"][0],
+                    obs["poses_theta"][0],
+                    (obs["scans"][0]).tolist()                    
+                ],
+                [
+                    obs["poses_x"][1],
+                    obs["poses_y"][1],
+                    obs["poses_theta"][1],
+                    (obs["scans"][1]).tolist()
+                    ]
+                ]
             )
         )
 
