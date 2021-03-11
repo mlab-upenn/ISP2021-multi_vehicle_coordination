@@ -352,25 +352,23 @@ if __name__ == "__main__":
         message = socket.recv()
 
         # deserialize it
-        trajectory = json.loads(message)
-        trajectory_1 = trajectory[0]
-        trajectory_2 = trajectory[1]
+        data = json.loads(message)
+        trajectory = data['trajectory']
+        goal_pts = data['goal_pts']
 
-        if np.size(trajectory_1) != 0:
-            env.update_path(trajectory_1)
-        # # print("position", obs["poses_x"][0], obs["poses_y"][0])
-        # # print("goal_point", goal_point)
-        # # print("generate path", trajectory_1)
+        if np.size(trajectory[0]) != 0:
+            # send data to renderer for visualization
+            env.renderer.update_waypoints(trajectory, 30)
+            env.renderer.update_goal_pts(goal_pts)
 
         # convert 1d list to 2d np array
-        nptraj_1 = np.array(trajectory_1)
+        nptraj_1 = np.array(trajectory[0])
         nptraj_1 = np.reshape(nptraj_1, (-1, 2))
-        nptraj_2 = np.array(trajectory_2)
+        nptraj_2 = np.array(trajectory[1])
         nptraj_2 = np.reshape(nptraj_2, (-1, 2))
 
         planner_1.update_paths(nptraj_1)
         planner_2.update_paths(nptraj_2)
-        # print(111)
         speed_1, steer_1 = planner_1.plan(
             obs["poses_x"][0],
             obs["poses_y"][0],
@@ -378,7 +376,6 @@ if __name__ == "__main__":
             work["tlad"],
             work["vgain"],
         )
-        # print(222)
         speed_2, steer_2 = planner_2.plan(
             obs["poses_x"][1],
             obs["poses_y"][1],

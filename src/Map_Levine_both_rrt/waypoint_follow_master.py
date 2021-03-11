@@ -456,6 +456,8 @@ if __name__ == "__main__":
         trajectory_2 = rrt_2.find_path()
 
         # send calculate path back to car
-        socket.send_string(json.dumps([trajectory_1.tolist(),trajectory_2.tolist()]))
+        socket.send_string(json.dumps({
+                "goal_pts":[rrt_1.goal_pt, rrt_2.goal_pt],
+                "trajectory":[trajectory_1.tolist(),trajectory_2.tolist()]}))
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
