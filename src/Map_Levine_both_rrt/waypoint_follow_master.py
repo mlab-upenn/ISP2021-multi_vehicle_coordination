@@ -96,7 +96,7 @@ class RRT:
     #    goal_pts: set goal points
     # Returns:
     #
-#    @njit(fastmath=False, cache=True)
+    #    @njit(fastmath=False, cache=True)
     def update_grids(self, obs):
         scan_msg = np.array(obs[3])
         self.goal_pt = self.calc_goal_pt()
@@ -157,7 +157,7 @@ class RRT:
     # Args:
     #
     # Returns:
-#    @njit(fastmath=False, cache=True)
+    #    @njit(fastmath=False, cache=True)
     def find_path(self):
         self.start = Node(self.x_curr, self.y_curr, None, True)
         self.start.cost = 0.0
@@ -272,7 +272,7 @@ class RRT:
     #     sampled_point ([x, y]): the sampled point in free space
     # Returns:
     #     nearest_node (int): index of nearest node on the tree
-#    @njit(fastmath=False, cache=True)
+    #    @njit(fastmath=False, cache=True)
     def nearest(self, tree, sampled_pt):
         nearest_node = 0
         min_dist = (tree[0].x - sampled_pt[0]) ** 2 + (tree[0].y - sampled_pt[1]) ** 2
@@ -312,7 +312,7 @@ class RRT:
     #    new_node (Node): new node created from steering
     # Returns:
     #    collision (bool): true if in collision, false otherwise
-#    @njit(fastmath=False, cache=True)
+    #    @njit(fastmath=False, cache=True)
     def check_collision(self, nearest_node, new_node):
         collision = False
         for i in range(100):
@@ -349,7 +349,7 @@ class RRT:
     # Returns:
     #   path (list of nodes): the vector that represents the order of
     #      of the nodes traversed as the found path
-#    @njit(fastmath=False, cache=True)
+    #    @njit(fastmath=False, cache=True)
     def backtrack_path(self, tree, latest_node):
         found_path = []
         next_node = tree[latest_node.parent]
@@ -427,7 +427,6 @@ if __name__ == "__main__":
     laptime = 0.0
     start = time.time()
 
-
     pool = ThreadPool(processes=2)
 
     while True:
@@ -437,27 +436,32 @@ if __name__ == "__main__":
 
         # deserialize json messages
         obs = json.loads(message)
-        
+
         rrt_1 = RRT(obs[0], False)
         rrt_2 = RRT(obs[1], False)
-        
+
         rrt_1.update_grids(obs[0])
         rrt_2.update_grids(obs[1])
-        
+
         trajectory_1 = None
         trajectory_2 = None
-        
-#        async_result1 = pool.apply_async(rrt_1.find_path, ())
-#        async_result2 = pool.apply_async(rrt_2.find_path, ())
-#            
-#        trajectory_1 = async_result1.get()
-#        trajectory_2 = async_result2.get()
+
+        #        async_result1 = pool.apply_async(rrt_1.find_path, ())
+        #        async_result2 = pool.apply_async(rrt_2.find_path, ())
+        #
+        #        trajectory_1 = async_result1.get()
+        #        trajectory_2 = async_result2.get()
         trajectory_1 = rrt_1.find_path()
         trajectory_2 = rrt_2.find_path()
 
         # send calculate path back to car
-        socket.send_string(json.dumps({
-                "goal_pts":[rrt_1.goal_pt, rrt_2.goal_pt],
-                "trajectory":[trajectory_1.tolist(),trajectory_2.tolist()]}))
+        socket.send_string(
+            json.dumps(
+                {
+                    "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
+                    "trajectory": [trajectory_1.tolist(), trajectory_2.tolist()],
+                }
+            )
+        )
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
