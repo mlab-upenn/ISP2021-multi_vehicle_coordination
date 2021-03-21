@@ -6,6 +6,8 @@ from argparse import Namespace
 import math
 import zmq
 import json
+import queue
+import threading
 
 from numba import njit
 
@@ -199,6 +201,7 @@ class PurePursuitPlanner:
             self.load_waypoints(conf)
         self.max_reacquire = 20.0
         self.follow_master = follow_master
+        self.waypoints = np.array([[0,0],[0,0]])
 
     def load_waypoints(self, conf):
         # load waypoints
@@ -273,7 +276,7 @@ class PurePursuitPlanner:
         )
         speed = vgain * speed
 
-        return speed, steering_angle
+        return speed, steering_angle, lookahead_point
 
 
 def get_goal_point(goal_car_curr_pos):
@@ -286,44 +289,30 @@ def get_goal_point(goal_car_curr_pos):
 
 #    return [10,0]
 
-
-if __name__ == "__main__":
-
-    work = {
-        "mass": 3.463388126201571,
-        "lf": 0.15597534362552312,
-        "tlad": 0.70,
-        "vgain": 0.90338203837889,
-    }
-
+def receive_waypoints(num, q):
+    """
+    Listener thread for receiving trajectory information from master node. 
+    If this thread receives a trajectory from the master, it will push it to 
+    the queue 
+    Args:
+        num: throwaway variable to get threading to work
+        q: shared queue that is shared with execute_pure_pursuit thread
+    Returns:
+        nothing
+    """
+    global obs
     context = zmq.Context()
 
     #  Socket to talk to server
-    print("Connecting to hello world server…")
+    print("Connecting to master server…")
     socket = context.socket(zmq.REQ)
     socket.connect("tcp://localhost:5555")
+    
+    while True:
 
-    with open("config_example_map.yaml") as file:
-        conf_dict = yaml.load(file, Loader=yaml.FullLoader)
-    conf = Namespace(**conf_dict)
-
-    env = gym.make(
-        "f110_gym:f110-v0", map=conf.map_path, map_ext=conf.map_ext, num_agents=2
-    )
-    obs, step_reward, done, info = env.reset(
-        np.array(
-            [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta]]
-        )
-    )
-    env.render()
-    planner_1 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
-    planner_2 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
-
-    laptime = 0.0
-    start = time.time()
-
-    while not done:
-
+#        if not obs_q.empty():
+#            obs = obs_q.get()
+        
         # serialize the observation data into JSON
         # need to store as array b/c njit cannot parse dict
         # x_curr = 0
@@ -351,15 +340,72 @@ if __name__ == "__main__":
 
         # receive the path from the master node
         message = socket.recv()
-
+        
         # deserialize it
         data = json.loads(message)
+        
         trajectory = data["trajectory"]
-        goal_pts = data["goal_pts"]
-
+        
         if np.size(trajectory[0]) != 0:
+            # add data to shared queue
+            q.put(data)
+        
+def execute_pure_pursuit(num, q):
+    """
+    Executes the pure pursuit algorithm without waiting for the RRT* planner
+    
+    """
+    global done
+    global obs
+    
+    work = {
+        "mass": 3.463388126201571,
+        "lf": 0.15597534362552312,
+        "tlad": 0.70,
+        "vgain": 0.90338203837889,
+    }
+    
+    with open("config_example_map.yaml") as file:
+        conf_dict = yaml.load(file, Loader=yaml.FullLoader)
+    conf = Namespace(**conf_dict)
+
+    env = gym.make(
+        "f110_gym:f110-v0", map=conf.map_path, map_ext=conf.map_ext, num_agents=2
+    )
+    obs, step_reward, done, info = env.reset(
+        np.array(
+            [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta]]
+        )
+    )
+    env.render()
+    
+    planner_1 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
+    planner_2 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
+
+    laptime = 0.0
+    start = time.time()
+    
+    trajectory = None
+    goal_pts = None
+    laser_scan_obst = None
+    data = None
+    
+    while not done:
+    
+        if not q.empty():
+            data = q.get()
+        
+        if data is None: continue
+        
+        if np.size(data["trajectory"][0]) != 0:
+            
+            trajectory = data["trajectory"]
+            goal_pts = data["goal_pts"]
+            laser_scan_obst = data["laser_scan_obst"]
+            
             # send data to renderer for visualization
-            env.renderer.update_waypoints(trajectory, 30)
+#            env.renderer.update_laser_scan_obst(laser_scan_obst, 2)
+            env.renderer.update_waypoints(trajectory)
             env.renderer.update_goal_pts(goal_pts)
 
         # convert 1d list to 2d np array
@@ -370,23 +416,67 @@ if __name__ == "__main__":
 
         planner_1.update_paths(nptraj_1)
         planner_2.update_paths(nptraj_2)
-        speed_1, steer_1 = planner_1.plan(
+        speed_1, steer_1, lookahead_point_1 = planner_1.plan(
             obs["poses_x"][0],
             obs["poses_y"][0],
             obs["poses_theta"][0],
             work["tlad"],
             work["vgain"],
         )
-        speed_2, steer_2 = planner_2.plan(
+        
+        speed_2, steer_2, lookahead_point_2 = planner_2.plan(
             obs["poses_x"][1],
             obs["poses_y"][1],
             obs["poses_theta"][1],
             work["tlad"],
             work["vgain"] / 2,
         )
+        
+        # update lookahead point
+        if lookahead_point_1 is not None:
+            env.renderer.update_lookahead_pts([lookahead_point_1,
+                                                       lookahead_point_2])
         obs, step_reward, done, info = env.step(
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
+        
+        
         laptime += step_reward
         env.render(mode="human")
+#        obs_q.put(obs)
+        
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
+
+if __name__ == "__main__":
+
+    work = {
+        "mass": 3.463388126201571,
+        "lf": 0.15597534362552312,
+        "tlad": 0.70,
+        "vgain": 0.90338203837889,
+    }
+    
+    with open("config_example_map.yaml") as file:
+        conf_dict = yaml.load(file, Loader=yaml.FullLoader)
+    conf = Namespace(**conf_dict)
+
+    env = gym.make(
+        "f110_gym:f110-v0", map=conf.map_path, map_ext=conf.map_ext, num_agents=2
+    )
+    obs, step_reward, done, info = env.reset(
+        np.array(
+            [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta]]
+        )
+    )
+    
+    # queue of data received from master
+    data_q = queue.Queue()
+    
+    # Create 2 separate threads for listening for the 
+    receive_msg_thread = threading.Thread(target=receive_waypoints, args=(0,data_q))
+    purepursuit_thread = threading.Thread(target=execute_pure_pursuit, args=(0,data_q))
+    purepursuit_thread.start()
+    receive_msg_thread.start()
+    
+    
+        

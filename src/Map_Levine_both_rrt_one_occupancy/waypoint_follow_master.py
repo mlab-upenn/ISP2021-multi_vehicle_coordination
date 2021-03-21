@@ -16,7 +16,7 @@ Planner Helpers
 """
 
 # RRT params
-MAX_ITER = 50
+MAX_ITER = 1000
 STEER_LENGTH = 0.3
 TERMINATE_LENGTH = 0.2
 ETA = 0.6
@@ -28,30 +28,22 @@ CAR_WIDTH = 0.31
 
 # -3.14159, 3.14159, 0.00582316
 
+def get_laser_scan_obstacles():
+    """
+    Returns list of grid points that the occupancy grid views as occupied in the
+    global frame. 
+    """
+    laser_scan_obst = []
+    return laser_scan_obst
 
 def get_occupancy_grid():
     occupancy_grids = np.zeros((520, 220), dtype=int)
     # set the occupancy grid according to knowledge about the levine hall
-    # for i in range(0, 2):  # right wall
-    #     for j in range(0, self.occupancy_grids_prior.shape[0]):
-    #         self.occupancy_grids_prior[j, i] = False
-    # for i in range(197, self.occupancy_grids_prior.shape[1]):  # left wall
-    #     for j in range(0, self.occupancy_grids_prior.shape[0]):
-    #         self.occupancy_grids_prior[j, i] = False
-    # for i in range(0, self.occupancy_grids_prior.shape[1]):  # bot wall
-    #     for j in range(0, 6):
-    #         self.occupancy_grids_prior[j, i] = False
-    # for i in range(0, self.occupancy_grids_prior.shape[1]):  # upper wall
-    #     for j in range(491, self.occupancy_grids_prior.shape[0]):
-    #         self.occupancy_grids_prior[j, i] = False
-    # for i in range(22, 178):  # inner parts
-    #     for j in range(24, 473):
-    #         self.occupancy_grids_prior[j, i] = False
-    occupancy_grids[:, 0:2] = 2
-    occupancy_grids[:, 197:] = 2
-    occupancy_grids[0:6, :] = 2
-    occupancy_grids[491:, :] = 2
-    occupancy_grids[24:473, 22:178] = 2
+    occupancy_grids[:, 0:2] = 2 # right wall
+    occupancy_grids[:, 197:] = 2 # left wall
+    occupancy_grids[0:6, :] = 2 # bottom wall
+    occupancy_grids[491:, :] = 2 # upper wall
+    occupancy_grids[24:473, 22:178] = 2 # inner section
     return occupancy_grids
 
 
@@ -126,6 +118,7 @@ class RRT:
     #    @njit(fastmath=False, cache=True)
     def update_grids(self, obs):
         global occupancy_grids
+        global laser_scan_obst
         scan_msg = np.array(obs[3])
         self.goal_pt = self.calc_goal_pt()
         angle_min = -3.14159
@@ -137,21 +130,15 @@ class RRT:
         self.theta_curr = obs[2]
         x_lidar = self.x_curr + rear_to_lidar * math.cos(self.theta_curr)
         y_lidar = self.y_curr + rear_to_lidar * math.sin(self.theta_curr)
-        for i in range(-3, 10):
-            for j in range(-3, 4):
-                x_car = (
-                    self.x_curr
-                    + i * 0.05 * math.cos(self.theta_curr)
-                    + j * 0.05 * math.sin(self.theta_curr)
-                )
-                y_car = (
-                    self.y_curr
-                    + i * 0.05 * math.sin(self.theta_curr)
-                    + j * 0.05 * math.cos(self.theta_curr)
-                )
-                grid_coordinates = self.convert_frame(x_car, y_car)
-                occupancy_grids[grid_coordinates[0], grid_coordinates[1]] = 1
+        
+        # update occupancy grid = 1 for current car
+        self.update_curr_car_occupancy_grid(self.x_curr, self.y_curr, self.theta_curr)
+                
+        # update occupancy grid based on current car's laser scan.
+        # actual obstacles are set to 2. only set an index to 2 if the 
+        # given index is not set to 1 already
         for i in range(scan_msg.shape[0]):
+            # only update 90 degrees section in front of car
             if (
                 angle_min + angle_increment * i >= -0.78540
                 and angle_min + angle_increment * i <= 0.78540
@@ -173,11 +160,41 @@ class RRT:
                         ):
                             if occupancy_grids[j, k] != 1:
                                 occupancy_grids[j, k] = 2
+                                laser_scan_obst += [x_obstacle, y_obstacle] # used for rendering
+
+    # update occupancy grid = 1 for current car
+    # also used for updating occupancy grid for current car path
+    def update_curr_car_occupancy_grid(self, x, y, theta):
+        global occupancy_grids
+        global laser_scan_obst
+        for i in range(-5, 12):
+            for j in range(-5, 6):
+                x_car = (
+                    x
+                    + i * 0.05 * math.cos(theta)
+                    + j * 0.05 * math.sin(theta)
+                )
+                y_car = (
+                    y
+                    + i * 0.05 * math.sin(theta)
+                    + j * 0.05 * math.cos(theta)
+                )
+                laser_scan_obst += [x_car, y_car] # used for rendering
+                grid_coordinates = self.convert_frame(x_car, y_car)
+                occupancy_grids[grid_coordinates[0], grid_coordinates[1]] = 1
 
     def calc_goal_pt(self):
         # calculate goal points
+#        if self.x_curr <= 7.00 and self.y_curr <= 2.34:
+#            goal_point = [self.x_curr + 2.30, -0.145]
+#        elif self.x_curr > 7.00 and self.y_curr <= 6.15:
+#            goal_point = [9.575, self.y_curr + 2.30]
+#        elif self.x_curr >= -11.26 and self.y_curr > 6.15:
+#            goal_point = [self.x_curr - 2.30, 8.65]
+#        elif self.x_curr < -11.26 and self.y_curr > 2.34:
+#            goal_point = [-13.79, self.y_curr - 2.30]
         if self.x_curr <= 7.00 and self.y_curr <= 2.34:
-            goal_point = [self.x_curr + 2.30, -0.145]
+            goal_point = [self.x_curr + 5.50, -0.145]
         elif self.x_curr > 7.00 and self.y_curr <= 6.15:
             goal_point = [9.575, self.y_curr + 2.30]
         elif self.x_curr >= -11.26 and self.y_curr > 6.15:
@@ -278,7 +295,7 @@ class RRT:
         #     trans2, np.dot(rotm, np.dot(trans1, np.array([x_dist, y_dist, 1])))
         # )
         if self.x_curr <= 7.00 and self.y_curr <= 2.34:
-            x_limit_top = self.x_curr + 2.50
+            x_limit_top = self.x_curr + 5.6
             x_limit_bot = self.x_curr
             y_limit_left = 0.37
             y_limit_right = -0.66
@@ -297,6 +314,26 @@ class RRT:
             x_limit_bot = -14.26
             y_limit_left = self.y_curr
             y_limit_right = self.y_curr - 2.50
+#        if self.x_curr <= 7.00 and self.y_curr <= 2.34:
+#            x_limit_top = 7.60
+#            x_limit_bot = self.x_curr
+#            y_limit_left = 0.37
+#            y_limit_right = -0.66
+#        elif self.x_curr > 7.00 and self.y_curr <= 6.15:
+#            x_limit_top = 10.03
+#            x_limit_bot = 9.12
+#            y_limit_left = self.y_curr + 2.50
+#            y_limit_right = self.y_curr
+#        elif self.x_curr >= -11.26 and self.y_curr > 6.15:
+#            x_limit_top = self.x_curr
+#            x_limit_bot = self.x_curr - 2.50
+#            y_limit_left = 9.15
+#            y_limit_right = 8.15
+#        elif self.x_curr < -11.26 and self.y_curr > 2.34:
+#            x_limit_top = -13.32
+#            x_limit_bot = -14.26
+#            y_limit_left = self.y_curr
+#            y_limit_right = self.y_curr - 2.50
         x_dist = np.random.uniform(x_limit_bot, x_limit_top)
         y_dist = np.random.uniform(y_limit_right, y_limit_left)
         return [x_dist, y_dist]
@@ -406,10 +443,30 @@ class RRT:
         found_path = []
         next_node = tree[latest_node.parent]
         while next_node.is_root == False:
+            theta = self.calculate_theta(next_node.x,
+                                         next_node.y,
+                                         tree[next_node.parent].x,
+                                         tree[next_node.parent].y)
+            self.update_curr_car_occupancy_grid(next_node.x, 
+                                                next_node.y, 
+                                                theta)
             found_path.append([next_node.x, next_node.y])
             next_node = tree[next_node.parent]
         found_path.append([tree[0].x, tree[0].y])
         return found_path
+    
+    """
+    This method calculates the estimated angle that the car will be at for a 
+    given segment in the path. Used to 
+    Args: 
+        (x1, y1) - global coords of first point
+        (x2, y2) - global coords of second point
+    Returns:
+        theta - angle between two points (in radians)
+    """
+    def calculate_theta(self, x1, y1, x2, y2):
+        return np.arctan2((y2-y1),(x2-x1))
+        
 
     # This method returns the set of Nodes in the neighborhood of a
     # node.
@@ -480,6 +537,7 @@ if __name__ == "__main__":
     start = time.time()
 
     pool = ThreadPool(processes=2)
+    
 
     while True:
 
@@ -493,9 +551,10 @@ if __name__ == "__main__":
         rrt_2 = RRT(obs[1], True)
 
         occupancy_grids = get_occupancy_grid()
+        laser_scan_obst = get_laser_scan_obstacles()
 
-        rrt_1.update_grids(obs[0])
         rrt_2.update_grids(obs[1])
+        rrt_1.update_grids(obs[0])
 
         trajectory_1 = None
         trajectory_2 = None
@@ -514,6 +573,7 @@ if __name__ == "__main__":
                 {
                     "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
                     "trajectory": [trajectory_1.tolist(), trajectory_2.tolist()],
+                    "laser_scan_obst": laser_scan_obst
                 }
             )
         )
