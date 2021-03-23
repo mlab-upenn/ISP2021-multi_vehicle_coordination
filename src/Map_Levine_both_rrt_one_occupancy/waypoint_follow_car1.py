@@ -209,9 +209,10 @@ class PurePursuitPlanner:
             conf.wpt_path, delimiter=conf.wpt_delim, skiprows=conf.wpt_rowskip
         )
 
-    def update_paths(self, trajectory):
+    def update_paths(self, trajectory, goal_pts):
         if np.size(trajectory) != 0:
             self.waypoints = trajectory
+        self.goal_pt = goal_pts
 
     def _get_current_waypoint(self, waypoints, lookahead_distance, position, theta):
         if self.follow_master:
@@ -254,13 +255,23 @@ class PurePursuitPlanner:
             )
         else:
             lookahead_point = np.empty((3,))
+            print("~~~")
             for i in range(self.waypoints.shape[0] - 1, 0, -1):
+                print(i)
+                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
+                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
                 if (
                     math.sqrt(
                         (self.waypoints[i, 0] - position[0]) ** 2
                         + (self.waypoints[i, 1] - position[1]) ** 2
                     )
-                    >= lookahead_distance
+                    >= lookahead_distance and math.sqrt(
+                        (self.goal_pt[0] - position[0]) ** 2
+                        + (self.goal_pt[1] - position[1]) ** 2
+                    ) >= math.sqrt(
+                        (self.goal_pt[0] - self.waypoints[i, 0]) ** 2
+                        + (self.goal_pt[1] - self.waypoints[i, 1]) ** 2
+                    )
                 ):
                     lookahead_point[0] = self.waypoints[i, 0]
                     lookahead_point[1] = self.waypoints[i, 1]
@@ -414,8 +425,8 @@ def execute_pure_pursuit(num, q):
         nptraj_2 = np.array(trajectory[1])
         nptraj_2 = np.reshape(nptraj_2, (-1, 2))
 
-        planner_1.update_paths(nptraj_1)
-        planner_2.update_paths(nptraj_2)
+        planner_1.update_paths(nptraj_1, goal_pts[0])
+        planner_2.update_paths(nptraj_2, goal_pts[1])
         speed_1, steer_1, lookahead_point_1 = planner_1.plan(
             obs["poses_x"][0],
             obs["poses_y"][0],
@@ -440,6 +451,7 @@ def execute_pure_pursuit(num, q):
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
         
+        time.sleep(0.01)
         
         laptime += step_reward
         env.render(mode="human")
