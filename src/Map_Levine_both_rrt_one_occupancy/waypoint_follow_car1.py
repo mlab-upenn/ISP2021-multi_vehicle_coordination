@@ -255,11 +255,11 @@ class PurePursuitPlanner:
             )
         else:
             lookahead_point = np.empty((3,))
-            print("~~~")
+#            print("~~~")
             for i in range(self.waypoints.shape[0] - 1, 0, -1):
-                print(i)
-                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
-                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
+#                print(i)
+#                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
+#                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
                 if (
                     math.sqrt(
                         (self.waypoints[i, 0] - position[0]) ** 2
@@ -413,11 +413,13 @@ def execute_pure_pursuit(num, q):
             trajectory = data["trajectory"]
             goal_pts = data["goal_pts"]
             laser_scan_obst = data["laser_scan_obst"]
+            search_area = data["search_area"]
             
             # send data to renderer for visualization
-#            env.renderer.update_laser_scan_obst(laser_scan_obst, 2)
+            env.renderer.update_laser_scan_obst(laser_scan_obst, 2)
             env.renderer.update_waypoints(trajectory)
             env.renderer.update_goal_pts(goal_pts)
+            env.renderer.update_search_area(search_area)
 
         # convert 1d list to 2d np array
         nptraj_1 = np.array(trajectory[0])

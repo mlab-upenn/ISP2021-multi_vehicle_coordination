@@ -16,7 +16,7 @@ Planner Helpers
 """
 
 # RRT params
-MAX_ITER = 1000
+MAX_ITER = 300
 STEER_LENGTH = 0.3
 TERMINATE_LENGTH = 0.2
 ETA = 0.6
@@ -69,6 +69,7 @@ class RRT:
         self.start = Node(self.x_curr, self.y_curr, None, True)
         self.start.cost = 0.0
         self.goal_pt = self.calc_goal_pt()
+        self.search_area = []
         # create an occupancy grid
         # self.occupancy_grids_prior = np.ones((500, 200), dtype=bool)
         # # set the occupancy grid according to knowledge about the levine hall
@@ -193,9 +194,10 @@ class RRT:
 #            goal_point = [self.x_curr - 2.30, 8.65]
 #        elif self.x_curr < -11.26 and self.y_curr > 2.34:
 #            goal_point = [-13.79, self.y_curr - 2.30]
-        if self.x_curr <= 7.00 and self.y_curr <= 2.34:
+        
+        if self.x_curr <= 6.00 and self.y_curr <= 2.34:
             goal_point = [self.x_curr + 5.50, -0.145]
-        elif self.x_curr > 7.00 and self.y_curr <= 6.15:
+        elif self.x_curr > 6.00 and self.y_curr <= 6.15:
             goal_point = [9.575, self.y_curr + 2.30]
         elif self.x_curr >= -11.26 and self.y_curr > 6.15:
             goal_point = [self.x_curr - 2.30, 8.65]
@@ -294,15 +296,15 @@ class RRT:
         # sample = np.dot(
         #     trans2, np.dot(rotm, np.dot(trans1, np.array([x_dist, y_dist, 1])))
         # )
-        if self.x_curr <= 7.00 and self.y_curr <= 2.34:
+        if self.x_curr <= 6.00 and self.y_curr <= 2.34:
             x_limit_top = self.x_curr + 5.6
             x_limit_bot = self.x_curr
             y_limit_left = 0.37
             y_limit_right = -0.66
-        elif self.x_curr > 7.00 and self.y_curr <= 6.15:
+        elif self.x_curr > 6.00 and self.y_curr <= 6.15:
             x_limit_top = 10.03
-            x_limit_bot = 9.12
-            y_limit_left = self.y_curr + 2.50
+            x_limit_bot = 8.50
+            y_limit_left = self.y_curr + 4.50
             y_limit_right = self.y_curr
         elif self.x_curr >= -11.26 and self.y_curr > 6.15:
             x_limit_top = self.x_curr
@@ -336,6 +338,11 @@ class RRT:
 #            y_limit_right = self.y_curr - 2.50
         x_dist = np.random.uniform(x_limit_bot, x_limit_top)
         y_dist = np.random.uniform(y_limit_right, y_limit_left)
+        self.search_area = [x_limit_top, y_limit_left,
+                            x_limit_top, y_limit_right,
+                            x_limit_bot, y_limit_right,
+                            x_limit_bot, y_limit_left,
+                            x_limit_top, y_limit_left]
         return [x_dist, y_dist]
 
     # This method returns the nearest node on the tree to the sampled point
@@ -573,7 +580,8 @@ if __name__ == "__main__":
                 {
                     "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
                     "trajectory": [trajectory_1.tolist(), trajectory_2.tolist()],
-                    "laser_scan_obst": laser_scan_obst
+                    "laser_scan_obst": laser_scan_obst,
+                    "search_area":[rrt_1.search_area, rrt_2.search_area]
                 }
             )
         )
