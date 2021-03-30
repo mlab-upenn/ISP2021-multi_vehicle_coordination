@@ -80,7 +80,7 @@ real_space_path_c1 = np.array(real_space_path_c1)
 real_space_path_c2 = np.array(real_space_path_c2)
 real_space_collided = np.array(real_space_collided)
 
-n = 201
+n = 100
 s = cp.Variable(n, nonneg=True)
 y = cp.Variable(100, integer=True)
 
@@ -109,7 +109,7 @@ print(end_time - current_time)
 if len(vec_plan_space) > 0:
     plt.figure(1)
     plt.plot(vec_plan_space[:, 0], vec_plan_space[:, 1], 'b.')
-    plt.plot(np.arange(0, 2.01, 0.01), s.value)
+    plt.plot(np.arange(0, 1.00, 0.01), s.value)
     plt.axis([0, max_time, 0, 1])
     plt.xlabel('Time (sec)')
     plt.ylabel('Percent Along Path')
@@ -150,8 +150,8 @@ path_fxn_1 = np.array(path_points_1[1] - path_points_1[0])
 path_fxn_2 = np.array(path_points_2[1] - path_points_2[0])
 
 # set waypoints in time-s space to follow
-s_2 = np.array(s.value).reshape((201, 1))
-t_2 = np.arange(0, 2.01, 0.01).reshape((201, 1))
+s_2 = np.array(s.value).reshape((100, 1))
+t_2 = np.arange(0, 1.00, 0.01).reshape((100, 1))
 time_fxn_2 = np.hstack((t_2, s_2))
 
 # the animation function for car 1
