@@ -3,28 +3,29 @@ import numpy as np
 import cvxpy as cp
 import time
 import matplotlib.pyplot as plt
+from PathTrajectory import PathTrajectory
 from matplotlib.animation import FuncAnimation
 
-
 # instantiate car1 and car2 waypoints
-c1_pos = np.array([[3, 2],
-                  [4, 5]])
-c2_pos = np.array([[2, 3],
-                  [5, 4]])
-c1_size = 0.5
-c2_size = 0.5
+c1_pos = np.array([[2, 5],
+                   [3.5, 1.5],
+                  [5, 5]])
+c2_pos = np.array([[1, 3],
+                  [5, 3]])
 
 # set car1 velocity profile waypoints
 # [time, percent along path]
 c1_vel = np.array([[0, 0],
+                   [0.5, 0.5],
                   [1, 1]])
+c2_vel = np.array([[0,0],
+                  [1,1]])
+    
+c1_traj = PathTrajectory(c1_pos, c1_vel)
+
 
 # set max time
 max_time = 1.0
-
-# path functions for each car
-c1_fxn = np.array(c1_pos[1] - c1_pos[0])
-c2_fxn = np.array(c2_pos[1] - c2_pos[0])
 
 # arrays for plotting
 vec_plan_space = []
@@ -36,15 +37,15 @@ max_obstacle = []
 
 # iterate thru time
 for t in np.arange(0.0, max_time, 0.01):
-
-    # calculate the scaled time for car 1's current segment
-    c1_seg_time = (c1_vel[1, 1] - c1_vel[0, 1]) / (c1_vel[1, 0] - c1_vel[0, 0]) * t
-    curr_c1_pos = (c1_pos[0] + c1_fxn * c1_seg_time)
+    
+    curr_c1_pos = c1_traj.update(t)
 
     found_collision = []
+    
+    c2_traj = PathTrajectory(c2_pos, c2_vel)
 
     for t2 in np.arange(0.0, max_time, 0.01):
-        curr_c2_pos = (c2_pos[0] + c2_fxn * t2)
+        curr_c2_pos = c2_traj.update(t2)
 
         # calculate if the two cars collide
         if (np.linalg.norm(curr_c1_pos - curr_c2_pos) < 1):
@@ -139,52 +140,46 @@ ax.set_aspect("equal")
 point, = ax.plot(0, 1, marker="o", markersize=42.28)
 point2, = ax.plot(0, 1, marker="o", markersize=42.28)
 
-# set path points
-path_points_1 = np.array([[3, 2],
-                          [4, 5]])
-path_points_2 = np.array([[2, 3],
-                          [5, 4]])
-
 # calc path vectors
-path_fxn_1 = np.array(path_points_1[1] - path_points_1[0])
-path_fxn_2 = np.array(path_points_2[1] - path_points_2[0])
+c2_fxn = np.array(c2_pos[1] - c2_pos[0])
 
 # set waypoints in time-s space to follow
 s_2 = np.array(s.value).reshape((100, 1))
 t_2 = np.arange(0, 1.00, 0.01).reshape((100, 1))
 time_fxn_2 = np.hstack((t_2, s_2))
 
-# the animation function for car 1
 
+c1_traj = PathTrajectory(c1_pos, c1_vel)
 
 def line(t):
-    return np.array(path_points_1[0] + path_fxn_1 * t)
+    global c1_traj
+    
+    return np.array(c1_traj.update(t))
 
 
 # initialize values for line2 animation function
 # car2_pos = []
-curr_seg = 0
-curr_pos = [2, 3]
+curr_c2_seg = 0
+curr_c2_pos = [1, 3]
 past_time = 0.0
 
 # animation function for car 2
 
 
 def line2(t):
-    global curr_seg
-    global curr_pos
+    global curr_c2_seg
+    global curr_c2_pos
     global past_time
 
-    if t > time_fxn_2[curr_seg + 1, 0]:
-        curr_seg += 1
+    if t > time_fxn_2[curr_c2_seg + 1, 0]:
+        curr_c2_seg += 1
 
     # calculate speed in real space of car 2
-    speed = (time_fxn_2[curr_seg + 1][1] * path_fxn_2 - time_fxn_2[curr_seg][1] * path_fxn_2) / (
-        time_fxn_2[curr_seg + 1][0] - time_fxn_2[curr_seg][0])
-    curr_pos += speed * (t - past_time)
+    speed = (time_fxn_2[curr_c2_seg + 1][1] * c2_fxn - time_fxn_2[curr_c2_seg][1] * c2_fxn) / (
+        time_fxn_2[curr_c2_seg + 1][0] - time_fxn_2[curr_c2_seg][0])
+    curr_c2_pos += speed * (t - past_time)
     past_time = t
-    out = np.array(curr_pos)
-    # car2_pos.append([t,out[0]])
+    out = np.array(curr_c2_pos)
 
     return out
 
