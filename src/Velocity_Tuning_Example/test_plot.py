@@ -11,6 +11,8 @@ c1_pos = np.array([[2, 5],
                    [3.5, 1.5],
                   [5, 5]])
 c2_pos = np.array([[1, 3],
+                   [3,4],
+                   [3.5, 4],
                   [5, 3]])
 
 # set car1 velocity profile waypoints
@@ -56,8 +58,7 @@ for t in np.arange(0.0, max_time, 0.01):
 
             # if they collide, then find the time parameterized value along the path
             # that corresponds to this time
-            c2_dist_from_start = np.linalg.norm(curr_c2_pos - c2_pos[0])
-            s = c2_dist_from_start / np.linalg.norm(c2_pos[1] - c2_pos[0])
+            s = c2_traj.s
 
             # append to array for plotting
             vec_plan_space.append([t, s])
@@ -150,38 +151,18 @@ time_fxn_2 = np.hstack((t_2, s_2))
 
 
 c1_traj = PathTrajectory(c1_pos, c1_vel)
+c2_traj = PathTrajectory(c2_pos, time_fxn_2)
 
 def line(t):
     global c1_traj
     
     return np.array(c1_traj.update(t))
 
-
-# initialize values for line2 animation function
-# car2_pos = []
-curr_c2_seg = 0
-curr_c2_pos = [1, 3]
-past_time = 0.0
-
 # animation function for car 2
-
-
 def line2(t):
-    global curr_c2_seg
-    global curr_c2_pos
-    global past_time
-
-    if t > time_fxn_2[curr_c2_seg + 1, 0]:
-        curr_c2_seg += 1
-
-    # calculate speed in real space of car 2
-    speed = (time_fxn_2[curr_c2_seg + 1][1] * c2_fxn - time_fxn_2[curr_c2_seg][1] * c2_fxn) / (
-        time_fxn_2[curr_c2_seg + 1][0] - time_fxn_2[curr_c2_seg][0])
-    curr_c2_pos += speed * (t - past_time)
-    past_time = t
-    out = np.array(curr_c2_pos)
-
-    return out
+    
+    global c2_traj
+    return np.array(c2_traj.update(t))
 
 # used for running the animation function
 
