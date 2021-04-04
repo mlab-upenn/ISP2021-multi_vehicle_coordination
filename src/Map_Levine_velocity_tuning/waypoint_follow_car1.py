@@ -410,7 +410,7 @@ def execute_pure_pursuit(num, q):
     
         if not q.empty():
             data = q.get()
-            prev_time = time.time()
+            prev_time = time.time() # save start time for given path update
         
         if data is None: continue
     
@@ -421,10 +421,12 @@ def execute_pure_pursuit(num, q):
             laser_scan_obst = data["laser_scan_obst"]
             search_area = data["search_area"]
             
+            # get the velocity tuned data
             if "time_s" in data:
                 time_s = data["time_s"]
-                time_s_2 = np.array(time_s[1])
-                path_length = data["path_length"]
+                time_s_2 = np.array(time_s[1]) # for now, just retrieve car 2's velocity tuned data since 
+                                                # it's only thing that will be changed
+                path_length = data["path_length"] # used for calculating speed
                 
             
             # send data to renderer for visualization
@@ -458,10 +460,21 @@ def execute_pure_pursuit(num, q):
             work["vgain"] / 2,
         )
         
+        # I don't think this is the way we should do it in the long term, but
+        # it was just a first shot. This gets the current time t of the current 
+        # update from master. t is then rounded down to the nearest hundredth digit
+        # and is then multiplied by 100 to get the index. This index is used to
+        # retrieve the s value at the given t, which we received from master.
+        # this is then used to calculate the current speed car 2 should be going.
+        # not really working though since time is not perfectly aligned with
+        # the actual position of the car due to delay. More ideal would be 
+        # doing some sort of MPC. It also stops working if we don't get an update
+        # after the max_time. You can also play around with test_plot.py as this 
+        # has some sample data
         curr_time = time.time()
         t = round(curr_time-prev_time, 2)
         if time_s_2.shape[0] > 0:
-            if int(t*100) < time_s_2.shape[0]:
+            if int(t*100) < time_s_2.shape[0]-1:
                 curr_idx = int(t*100)
                 speed_2 = (time_s_2[curr_idx+1][1]-time_s_2[curr_idx][1])*path_length[1]/0.01
         

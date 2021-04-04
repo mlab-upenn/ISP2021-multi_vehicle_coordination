@@ -528,7 +528,6 @@ if __name__ == "__main__":
             
             velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time)
             velocityTuner.tune_velocities()
-            velocityTuner.optimize_velocity_path()
             pathTraj_2 = velocityTuner.pathTraj_2
             
             msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]

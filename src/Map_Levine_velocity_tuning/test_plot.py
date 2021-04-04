@@ -42,9 +42,8 @@ c2_pos = np.array([[ 3.90381196, -0.02091131],
                  [-3.        ,  0.        ]]
                 )
 
-for x in c2_pos:
-    x[0] -= 0
 
+# reverse order of waypoints as they're backwards
 c1_pos = np.flip(c1_pos, 0)
 c2_pos = np.flip(c2_pos, 0)
 
@@ -54,7 +53,7 @@ max_time = 5
 # set car1 velocity profile waypoints
 # [time, percent along path]
 c1_vel = np.array([[0, 0],
-                  [0.5, 1],
+                  [0.5, 1],  # make car 1 go 2x faster than car 2
                   [max_time,1]])
 c2_vel = np.array([[0,0],
                   [max_time,1]])
