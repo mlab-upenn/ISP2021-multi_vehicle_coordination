@@ -30,6 +30,7 @@ CAR_WIDTH = 0.31
 
 # -3.14159, 3.14159, 0.00582316
 
+
 def get_laser_scan_obstacles():
     """
     Returns list of grid points that the occupancy grid views as occupied in the
@@ -38,14 +39,15 @@ def get_laser_scan_obstacles():
     laser_scan_obst = []
     return laser_scan_obst
 
+
 def get_occupancy_grid():
     occupancy_grids = np.zeros((520, 220), dtype=int)
     # set the occupancy grid according to knowledge about the levine hall
-    occupancy_grids[:, 0:2] = 2 # right wall
-    occupancy_grids[:, 197:] = 2 # left wall
-    occupancy_grids[0:6, :] = 2 # bottom wall
-    occupancy_grids[491:, :] = 2 # upper wall
-    occupancy_grids[24:473, 22:178] = 2 # inner section
+    occupancy_grids[:, 0:2] = 2  # right wall
+    occupancy_grids[:, 197:] = 2  # left wall
+    occupancy_grids[0:6, :] = 2  # bottom wall
+    occupancy_grids[491:, :] = 2  # upper wall
+    occupancy_grids[24:473, 22:178] = 2  # inner section
     return occupancy_grids
 
 
@@ -101,25 +103,24 @@ class RRT:
         self.goal_pt = self.calc_goal_pt()
         angle_min = -3.14159
         angle_increment = 0.00582316
-        angle_max = 3.14159
+        # angle_max = 3.14159
         rear_to_lidar = 0.29275
         self.x_curr = obs[0]
         self.y_curr = obs[1]
         self.theta_curr = obs[2]
         x_lidar = self.x_curr + rear_to_lidar * math.cos(self.theta_curr)
         y_lidar = self.y_curr + rear_to_lidar * math.sin(self.theta_curr)
-        
+
         # update occupancy grid = 1 for current car
         self.update_curr_car_occupancy_grid(self.x_curr, self.y_curr, self.theta_curr)
-                
+
         # update occupancy grid based on current car's laser scan.
-        # actual obstacles are set to 2. only set an index to 2 if the 
+        # actual obstacles are set to 2. only set an index to 2 if the
         # given index is not set to 1 already
         for i in range(scan_msg.shape[0]):
             # only update 90 degrees section in front of car
             if (
-                angle_min + angle_increment * i >= -0.78540
-                and angle_min + angle_increment * i <= 0.78540
+                angle_min + angle_increment * i >= -0.78540 and angle_min + angle_increment * i <= 0.78540
             ):
                 if (not math.isinf(scan_msg[i])) and (not math.isnan(scan_msg[i])):
                     distance = scan_msg[i]
@@ -138,7 +139,7 @@ class RRT:
                         ):
                             if occupancy_grids[j, k] != 1:
                                 occupancy_grids[j, k] = 2
-                                laser_scan_obst += [x_obstacle, y_obstacle] # used for rendering
+                                laser_scan_obst += [x_obstacle, y_obstacle]  # used for rendering
 
     # update occupancy grid = 1 for current car
     # also used for updating occupancy grid for current car path
@@ -157,13 +158,13 @@ class RRT:
                     + i * 0.05 * math.sin(theta)
                     + j * 0.05 * math.cos(theta)
                 )
-                laser_scan_obst += [x_car, y_car] # used for rendering
+                laser_scan_obst += [x_car, y_car]  # used for rendering
                 grid_coordinates = self.convert_frame(x_car, y_car)
                 occupancy_grids[grid_coordinates[0], grid_coordinates[1]] = 1
 
     def calc_goal_pt(self):
         # calculate goal points
-        
+
         if self.x_curr <= 6.00 and self.y_curr <= 2.34:
             goal_point = [self.x_curr + 7.50, -0.145]
         elif self.x_curr > 6.00 and self.y_curr <= 6.15:
@@ -197,10 +198,10 @@ class RRT:
             )  # steer the tree toward the sampled point, get new point
             new_node.parent = nearest_node_idx  # set the parent of the new point
             if (
-                self.check_collision(tree[nearest_node_idx], new_node) == False
+                self.check_collision(tree[nearest_node_idx], new_node) is False
             ):  # collision checking for connecting the new point to the tree
                 # if algorithm RRT* star is chosen, the block in the if statement is performed
-                if self.rrt_star == True:
+                if self.rrt_star is True:
                     near_set = self.near(
                         tree, new_node
                     )  # set of points in the neighborhood of the new point
@@ -210,7 +211,7 @@ class RRT:
                     )
                     for j in range(len(near_set)):
                         if (
-                            self.check_collision(tree[near_set[j]], new_node) == False
+                            self.check_collision(tree[near_set[j]], new_node) is False
                             and (
                                 self.cost(tree, tree[near_set[j]])
                                 + self.line_cost(new_node, tree[near_set[j]])
@@ -226,7 +227,7 @@ class RRT:
                     for j in range(len(near_set)):
                         if self.check_collision(
                             tree[near_set[j]], new_node
-                        ) == False and (
+                        ) is False and (
                             min_cost + self.line_cost(new_node, tree[near_set[j]])
                             < self.cost(tree, tree[near_set[j]])
                         ):
@@ -398,16 +399,16 @@ class RRT:
     def backtrack_path(self, tree, latest_node):
         found_path = []
         next_node = tree[latest_node.parent]
-        while next_node.is_root == False:
-            theta = self.calculate_theta(next_node.x,
-                                         next_node.y,
-                                         tree[next_node.parent].x,
-                                         tree[next_node.parent].y)
+        while next_node.is_root is False:
+            # theta = self.calculate_theta(next_node.x,
+            #                              next_node.y,
+            #                              tree[next_node.parent].x,
+            #                              tree[next_node.parent].y)
             found_path.append([next_node.x, next_node.y])
             next_node = tree[next_node.parent]
         found_path.append([tree[0].x, tree[0].y])
         return found_path
-    
+
     """
     This method calculates the estimated angle that the car will be at for a 
     given segment in the path. Used to 
@@ -417,9 +418,9 @@ class RRT:
     Returns:
         theta - angle between two points (in radians)
     """
+
     def calculate_theta(self, x1, y1, x2, y2):
-        return np.arctan2((y2-y1),(x2-x1))
-        
+        return np.arctan2((y2 - y1), (x2 - x1))
 
     # This method returns the set of Nodes in the neighborhood of a
     # node.
@@ -428,6 +429,7 @@ class RRT:
     #   node (Node): the node to find the neighborhood for
     # Returns:
     #   neighborhood (list of index): the index of the nodes in the neighborhood
+
     def near(self, tree, new_node):
         neighborhood = []
         for i in range(len(tree)):
@@ -469,8 +471,6 @@ def get_goal_point(goal_car_curr_pos):
     ]
 
 
-
-
 if __name__ == "__main__":
 
     work = {
@@ -489,7 +489,6 @@ if __name__ == "__main__":
     start = time.time()
 
     pool = ThreadPool(processes=2)
-    
 
     while True:
 
@@ -510,33 +509,34 @@ if __name__ == "__main__":
 
         trajectory_1 = None
         trajectory_2 = None
-        
+
         trajectory_1 = rrt_1.find_path()
         trajectory_2 = rrt_2.find_path()
-                
+
         msg = {
-                    "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
-                    "trajectory": [trajectory_1.tolist(), trajectory_2.tolist()],
-                    "laser_scan_obst": laser_scan_obst,
-                    "search_area":[rrt_1.search_area, rrt_2.search_area]
-                }
-        
+            "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
+            "trajectory": [trajectory_1.tolist(), trajectory_2.tolist()],
+            "laser_scan_obst": laser_scan_obst,
+            "search_area": [rrt_1.search_area, rrt_2.search_area]
+        }
+
         if len(trajectory_1) > 1 and len(trajectory_2) > 1:
-            max_time = 6.0
-            pathTraj_1 = PathTrajectory(np.flip(trajectory_1,0), np.array([[0,0],[1, 1],[max_time, 1]]))
-            pathTraj_2 = PathTrajectory(np.flip(trajectory_2,0), np.array([[0,0],[max_time, 1]]))
-            
+            max_time = 1.0
+            pathTraj_1 = PathTrajectory(np.flip(trajectory_1, 0), np.array([[0, 0], [1, 1], [max_time, 1]]))
+            pathTraj_2 = PathTrajectory(np.flip(trajectory_2, 0), np.array([[0, 0], [max_time, 1]]))
+
             velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time)
             velocityTuner.tune_velocities()
             pathTraj_2 = velocityTuner.pathTraj_2
-            
-            msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]
-            msg["path_length"] = [pathTraj_1.total_path_length, pathTraj_2.total_path_length]
+            pathTrajvelcoity_1, pathTrajvelocity_2 = velocityTuner.calculate_trajectory()
 
-    
+            # msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]
+            # msg["path_length"] = [pathTraj_1.total_path_length, pathTraj_2.total_path_length]
+            msg["trajectory_velocity"] = [pathTrajvelcoity_1.tolist(), pathTrajvelocity_2.tolist()]
+
         # send calculate path back to car
         socket.send_string(
-            json.dumps( msg )
+            json.dumps(msg)
         )
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)

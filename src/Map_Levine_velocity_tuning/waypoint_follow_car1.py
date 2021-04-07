@@ -201,7 +201,7 @@ class PurePursuitPlanner:
             self.load_waypoints(conf)
         self.max_reacquire = 20.0
         self.follow_master = follow_master
-        self.waypoints = np.array([[0,0],[0,0]])
+        self.waypoints = np.array([[0, 0], [0, 0]])
 
     def load_waypoints(self, conf):
         # load waypoints
@@ -234,7 +234,7 @@ class PurePursuitPlanner:
             lookahead_point, i2, t2 = first_point_on_trajectory_intersecting_circle(
                 position, lookahead_distance, wpts, i + t, wrap=True
             )
-            if i2 == None:
+            if i2 is None:
                 return None
             current_waypoint = np.empty((3,))
             # x, y
@@ -249,34 +249,57 @@ class PurePursuitPlanner:
 
     def plan(self, pose_x, pose_y, pose_theta, lookahead_distance, vgain):
         position = np.array([pose_x, pose_y])
-        if self.follow_master == True:
+        if self.follow_master is True:
             lookahead_point = self._get_current_waypoint(
                 self.waypoints, lookahead_distance, position, pose_theta
             )
         else:
             lookahead_point = np.empty((3,))
 #            print("~~~")
-            for i in range(self.waypoints.shape[0] - 1, 0, -1):
-#                print(i)
-#                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
-#                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
-                if (
-                    math.sqrt(
-                        (self.waypoints[i, 0] - position[0]) ** 2
-                        + (self.waypoints[i, 1] - position[1]) ** 2
-                    )
-                    >= lookahead_distance and math.sqrt(
-                        (self.goal_pt[0] - position[0]) ** 2
-                        + (self.goal_pt[1] - position[1]) ** 2
-                    ) >= math.sqrt(
-                        (self.goal_pt[0] - self.waypoints[i, 0]) ** 2
-                        + (self.goal_pt[1] - self.waypoints[i, 1]) ** 2
-                    )
-                ):
-                    lookahead_point[0] = self.waypoints[i, 0]
-                    lookahead_point[1] = self.waypoints[i, 1]
-                    lookahead_point[2] = 3.0
-                    break
+            if self.waypoints.shape[1] == 2:
+                for i in range(self.waypoints.shape[0] - 1, 0, -1):
+                    #                print(i)
+                    #                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
+                    #                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
+                    if (
+                        math.sqrt(
+                            (self.waypoints[i, 0] - position[0]) ** 2
+                            + (self.waypoints[i, 1] - position[1]) ** 2
+                        )
+                        >= lookahead_distance and math.sqrt(
+                            (self.goal_pt[0] - position[0]) ** 2
+                            + (self.goal_pt[1] - position[1]) ** 2
+                        ) >= math.sqrt(
+                            (self.goal_pt[0] - self.waypoints[i, 0]) ** 2
+                            + (self.goal_pt[1] - self.waypoints[i, 1]) ** 2
+                        )
+                    ):
+                        lookahead_point[0] = self.waypoints[i, 0]
+                        lookahead_point[1] = self.waypoints[i, 1]
+                        lookahead_point[2] = 3.0
+                        break
+            else:
+                for i in range(self.waypoints.shape[0] - 1):
+                    if (
+                        math.sqrt(
+                            (self.waypoints[i, 0] - position[0]) ** 2
+                            + (self.waypoints[i, 1] - position[1]) ** 2
+                        )
+                        >= lookahead_distance and math.sqrt(
+                            (self.goal_pt[0] - position[0]) ** 2
+                            + (self.goal_pt[1] - position[1]) ** 2
+                        ) >= math.sqrt(
+                            (self.goal_pt[0] - self.waypoints[i, 0]) ** 2
+                            + (self.goal_pt[1] - self.waypoints[i, 1]) ** 2
+                        )
+                    ):
+                        lookahead_point[0] = self.waypoints[i, 0]
+                        lookahead_point[1] = self.waypoints[i, 1]
+                        break
+                distance_waypoints = np.subtract(self.waypoints[:, 0:2], position)
+                distance_waypoints = np.linalg.norm(distance_waypoints, ord=2, axis=1)
+                velocity_point_idx = np.argmin(distance_waypoints)
+                lookahead_point[2] = self.waypoints[velocity_point_idx, 2]
         # print("waypoints matrix", self.waypoints)
         # print("lookahead", lookahead_point)
         if lookahead_point is None:
@@ -318,12 +341,12 @@ def receive_waypoints(num, q):
     print("Connecting to master server…")
     socket = context.socket(zmq.REQ)
     socket.connect("tcp://localhost:5555")
-    
+
     while True:
 
-#        if not obs_q.empty():
-#            obs = obs_q.get()
-        
+        #        if not obs_q.empty():
+        #            obs = obs_q.get()
+
         # serialize the observation data into JSON
         # need to store as array b/c njit cannot parse dict
         # x_curr = 0
@@ -351,31 +374,32 @@ def receive_waypoints(num, q):
 
         # receive the path from the master node
         message = socket.recv()
-        
+
         # deserialize it
         data = json.loads(message)
-        
+
         trajectory = data["trajectory"]
-        
+
         if np.size(trajectory[0]) != 0:
             # add data to shared queue
             q.put(data)
-        
+
+
 def execute_pure_pursuit(num, q):
     """
     Executes the pure pursuit algorithm without waiting for the RRT* planner
-    
+
     """
     global done
     global obs
-    
+
     work = {
         "mass": 3.463388126201571,
         "lf": 0.15597534362552312,
         "tlad": 0.70,
         "vgain": 0.90338203837889,
     }
-    
+
     with open("config_example_map.yaml") as file:
         conf_dict = yaml.load(file, Loader=yaml.FullLoader)
     conf = Namespace(**conf_dict)
@@ -389,58 +413,66 @@ def execute_pure_pursuit(num, q):
         )
     )
     env.render()
-    
+
     planner_1 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
     planner_2 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
 
     laptime = 0.0
     start = time.time()
-    
+
     trajectory = None
     goal_pts = None
     laser_scan_obst = None
     data = None
-    time_s = None
-    path_length = None
-        
+    nptraj_1 = None
+    nptraj_2 = None
+
     prev_time = time.time()
-    time_s_2 = None
-    
+
     while not done:
-    
+
         if not q.empty():
             data = q.get()
-            prev_time = time.time() # save start time for given path update
-        
-        if data is None: continue
-    
+            prev_time = time.time()  # save start time for given path update
+
+        if data is None:
+            continue
+
         if np.size(data["trajectory"][0]) != 0:
-            
+
             trajectory = data["trajectory"]
             goal_pts = data["goal_pts"]
             laser_scan_obst = data["laser_scan_obst"]
             search_area = data["search_area"]
-            
+
+            # convert 1d list to 2d np array
+            nptraj_1 = np.array(trajectory[0])
+            nptraj_1 = np.reshape(nptraj_1, (-1, 2))
+            nptraj_2 = np.array(trajectory[1])
+            nptraj_2 = np.reshape(nptraj_2, (-1, 2))
+
+            # # get the velocity tuned data
+            # if "time_s" in data:
+            #     time_s = data["time_s"]
+            #     time_s_2 = np.array(time_s[1])  # for now, just retrieve car 2's velocity tuned data since
+            #     # it's only thing that will be changed
+            #     path_length = data["path_length"]  # used for calculating speed
+
             # get the velocity tuned data
-            if "time_s" in data:
-                time_s = data["time_s"]
-                time_s_2 = np.array(time_s[1]) # for now, just retrieve car 2's velocity tuned data since 
-                                                # it's only thing that will be changed
-                path_length = data["path_length"] # used for calculating speed
-                
-            
+            if "trajectory_velocity" in data:
+                trajectory_velocity = data["trajectory_velocity"]
+                trajectory_velocity_1 = trajectory_velocity[0]
+                trajectory_velocity_2 = trajectory_velocity[1]
+                nptraj_1 = np.array(trajectory_velocity_1)
+                nptraj_1 = np.reshape(nptraj_1, (-1, 3))
+                nptraj_2 = np.array(trajectory_velocity_2)
+                nptraj_2 = np.reshape(nptraj_2, (-1, 3))
+
             # send data to renderer for visualization
 #            env.renderer.update_laser_scan_obst(laser_scan_obst, 2)
             env.renderer.update_waypoints(trajectory)
             env.renderer.update_goal_pts(goal_pts)
-            env.renderer.update_search_area(search_area)
-
-
-        # convert 1d list to 2d np array
-        nptraj_1 = np.array(trajectory[0])
-        nptraj_1 = np.reshape(nptraj_1, (-1, 2))
-        nptraj_2 = np.array(trajectory[1])
-        nptraj_2 = np.reshape(nptraj_2, (-1, 2))
+            # env.renderer.update_search_area(search_area)
 
         planner_1.update_paths(nptraj_1, goal_pts[0])
         planner_2.update_paths(nptraj_2, goal_pts[1])
@@ -451,50 +483,50 @@ def execute_pure_pursuit(num, q):
             work["tlad"],
             work["vgain"],
         )
-        
+
         speed_2, steer_2, lookahead_point_2 = planner_2.plan(
             obs["poses_x"][1],
             obs["poses_y"][1],
             obs["poses_theta"][1],
             work["tlad"],
-            work["vgain"] / 2,
+            work["vgain"],
+            # work["vgain"] / 2,
         )
-        
-        # I don't think this is the way we should do it in the long term, but
-        # it was just a first shot. This gets the current time t of the current 
-        # update from master. t is then rounded down to the nearest hundredth digit
-        # and is then multiplied by 100 to get the index. This index is used to
-        # retrieve the s value at the given t, which we received from master.
-        # this is then used to calculate the current speed car 2 should be going.
-        # not really working though since time is not perfectly aligned with
-        # the actual position of the car due to delay. More ideal would be 
-        # doing some sort of MPC. It also stops working if we don't get an update
-        # after the max_time. You can also play around with test_plot.py as this 
-        # has some sample data
-        curr_time = time.time()
-        t = round(curr_time-prev_time, 2)
-        if time_s_2.shape[0] > 0:
-            if int(t*100) < time_s_2.shape[0]-1:
-                curr_idx = int(t*100)
-                speed_2 = (time_s_2[curr_idx+1][1]-time_s_2[curr_idx][1])*path_length[1]/0.01
-        
+
+        # # I don't think this is the way we should do it in the long term, but
+        # # it was just a first shot. This gets the current time t of the current
+        # # update from master. t is then rounded down to the nearest hundredth digit
+        # # and is then multiplied by 100 to get the index. This index is used to
+        # # retrieve the s value at the given t, which we received from master.
+        # # this is then used to calculate the current speed car 2 should be going.
+        # # not really working though since time is not perfectly aligned with
+        # # the actual position of the car due to delay. More ideal would be
+        # # doing some sort of MPC. It also stops working if we don't get an update
+        # # after the max_time. You can also play around with test_plot.py as this
+        # # has some sample data
+        # curr_time = time.time()
+        # t = round(curr_time - prev_time, 2)
+        # if time_s_2.shape[0] > 0:
+        #     if int(t * 100) < time_s_2.shape[0] - 1:
+        #         curr_idx = int(t * 100)
+        #         speed_2 = (time_s_2[curr_idx + 1][1] - time_s_2[curr_idx][1]) * path_length[1] / 0.01
+
         # update lookahead point
         if lookahead_point_1 is not None:
             env.renderer.update_lookahead_pts([lookahead_point_1,
-                                                       lookahead_point_2])
+                                               lookahead_point_2])
         obs, step_reward, done, info = env.step(
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
-        
+
         time.sleep(0.01)
-        
-        
-        
+
         laptime += step_reward
         env.render(mode="human")
 #        obs_q.put(obs)
-        
+
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
+
 
 if __name__ == "__main__":
 
@@ -504,7 +536,7 @@ if __name__ == "__main__":
         "tlad": 0.70,
         "vgain": 0.90338203837889,
     }
-    
+
     with open("config_example_map.yaml") as file:
         conf_dict = yaml.load(file, Loader=yaml.FullLoader)
     conf = Namespace(**conf_dict)
@@ -517,15 +549,12 @@ if __name__ == "__main__":
             [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta]]
         )
     )
-    
+
     # queue of data received from master
     data_q = queue.Queue()
-    
-    # Create 2 separate threads for listening for the 
-    receive_msg_thread = threading.Thread(target=receive_waypoints, args=(0,data_q))
-    purepursuit_thread = threading.Thread(target=execute_pure_pursuit, args=(0,data_q))
+
+    # Create 2 separate threads for listening for the
+    receive_msg_thread = threading.Thread(target=receive_waypoints, args=(0, data_q))
+    purepursuit_thread = threading.Thread(target=execute_pure_pursuit, args=(0, data_q))
     purepursuit_thread.start()
     receive_msg_thread.start()
-    
-    
-        
