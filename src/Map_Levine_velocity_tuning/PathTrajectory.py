@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 class PathTrajectory:
-    def __init__(self, path, time_s=np.array([[0.0, 0.0], [1.0, 1.0]])):
+    def __init__(self, path, time_s, total_time):
         self.path = path        # list of waypoints
         self.time_s = time_s    # list of [time , s] values that correspond to
         # waypoint at given index
@@ -32,6 +32,9 @@ class PathTrajectory:
 
         # velocity of the first vehicle
         self.velocity_car_1 = 3.0
+        
+        # total time it takes to traverse path
+        self.total_time = total_time
 
     def update(self, t):
         """
@@ -43,13 +46,18 @@ class PathTrajectory:
         """
 
         # increment current segment idx in time_s array
-        if t > self.time_s[self.curr_s_seg + 1, 0]:
-            self.curr_s_seg += 1
-
+        if t > self.time_s[self.curr_s_seg+1, 0]:
+            
+            if self.curr_s_seg + 1 < len(self.time_s) - 1:
+                self.curr_s_seg += 1
+            else:
+                t = self.time_s[self.curr_s_seg+1,0]
+            
         # increment current segment idx in path array
-        if self.s > self.path_s[self.curr_path_seg + 1]:
-            self.curr_path_seg += 1
-            self.curr_vec = np.array(self.path[self.curr_path_seg + 1] -
+        if self.s > self.path_s[self.curr_path_seg+1]:
+            if self.curr_path_seg + 1 < len(self.path_s)-1:
+                self.curr_path_seg += 1
+            self.curr_vec = np.array(self.path[self.curr_path_seg+1]-\
                                      self.path[self.curr_path_seg])
 
         # calc speed in units of s/time
@@ -72,7 +80,8 @@ class PathTrajectory:
 
         return pos
 
-    def determine_waypoint(self, t, path_length_vehicle_1):
+#    def determine_waypoint(self, t, path_length_vehicle_1):
+    def determine_waypoint(self, t):
         """
         Returns the current position and velocity along the path for given t value
 
@@ -80,15 +89,19 @@ class PathTrajectory:
             IN: t - current time in seconds
             OUT: x, y, v - current x, y, v value
         """
-
         # increment current segment idx in time_s array
-        if t > self.time_s[self.curr_s_seg + 1, 0]:
-            self.curr_s_seg += 1
-
+        if t > self.time_s[self.curr_s_seg+1, 0]:
+            
+            if self.curr_s_seg + 1 < len(self.time_s) - 1:
+                self.curr_s_seg += 1
+            else:
+                t = self.time_s[self.curr_s_seg+1,0]
+            
         # increment current segment idx in path array
-        if self.s > self.path_s[self.curr_path_seg + 1]:
-            self.curr_path_seg += 1
-            self.curr_vec = np.array(self.path[self.curr_path_seg + 1] -
+        if self.s > self.path_s[self.curr_path_seg+1]:
+            if self.curr_path_seg + 1 < len(self.path_s)-1:
+                self.curr_path_seg += 1
+            self.curr_vec = np.array(self.path[self.curr_path_seg+1]-\
                                      self.path[self.curr_path_seg])
 
         # calc speed in units of s/time
@@ -110,7 +123,8 @@ class PathTrajectory:
             / curr_path_seg_total_s_len * self.curr_vec
 
         # calculate current velocity of vehicle
-        vel = time_s_speed * self.velocity_car_1 * self.total_path_length / path_length_vehicle_1
+#        vel = time_s_speed * self.velocity_car_1 * self.total_path_length / path_length_vehicle_1
+        vel = time_s_speed * self.total_path_length / self.total_time * 2
 
         return pos[0], pos[1], vel
 

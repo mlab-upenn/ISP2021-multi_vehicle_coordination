@@ -544,6 +544,7 @@ if __name__ == "__main__":
             velocityTuner.tune_velocities()
             pathTraj_2 = velocityTuner.pathTraj_2
             
+            msg["trajectory"] = [pathTraj_1.path.tolist(), pathTraj_2.path.tolist()]
             msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]
             msg["path_length"] = [pathTraj_1.total_path_length, pathTraj_2.total_path_length]
 

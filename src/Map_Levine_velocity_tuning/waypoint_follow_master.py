@@ -10,6 +10,7 @@ import zmq
 from multiprocessing.pool import ThreadPool
 from PathTrajectory import PathTrajectory
 from VelocityTuner import VelocityTuner
+from TrajectorySmoothing import TrajectorySmoothing
 
 from numba import njit
 
@@ -512,6 +513,39 @@ if __name__ == "__main__":
 
         trajectory_1 = rrt_1.find_path()
         trajectory_2 = rrt_2.find_path()
+        
+#        trajectory_1 = np.array([[ 2.22374142e+00, -3.79893641e-03],
+#         [ 1.63769408e+00,  3.30800844e-02],
+#         [ 1.07068519e+00, -2.75612004e-02],
+#         [ 6.65643282e-01, -1.51545069e-01],
+#         [ 7.94652784e-02, -2.07459981e-01],
+#         [-2.18877129e-01, -2.38952966e-01],
+#         [-8.13397358e-01, -2.63592846e-01],
+#         [-1.38573766e+00, -3.71340052e-01],
+#         [-1.96368019e+00, -5.18964665e-01],
+#         [-2.37448779e+00, -4.63992759e-01],
+#         [-2.96652200e+00, -5.43226038e-01],
+#         [-3.54476297e+00, -3.99039045e-01],
+#         [-3.86796226e+00, -2.06865596e-01],
+#         [-4.45580315e+00, -1.74883870e-01],
+#         [-4.99744705e+00, -7.54591859e-08]])
+#        trajectory_2 = np.array([[ 4.09344206e+00, -1.75239803e-01],
+#         [ 3.79392378e+00, -1.58245731e-01],
+#         [ 3.20005712e+00, -1.61349176e-01],
+#         [ 2.61035169e+00, -2.22532707e-01],
+#         [ 2.07353467e+00, -1.28643557e-01],
+#         [ 1.77660251e+00, -8.58499525e-02],
+#         [ 1.19250716e+00,  2.99515409e-02],
+#         [ 5.94109720e-01,  6.82018614e-02],
+#         [-5.42762556e-03,  5.20939999e-02],
+#         [-6.03895385e-01,  6.63778575e-02],
+#         [-1.20257923e+00,  7.74802401e-02],
+#         [-1.80084216e+00,  6.52300186e-02],
+#         [-2.39992338e+00,  3.78900126e-02],
+#         [-2.99872352e+00,  1.88647965e-08]])
+        
+        car1_vel = 2.5
+        car2_vel = 2.5
 
         msg = {
             "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
@@ -521,18 +555,31 @@ if __name__ == "__main__":
         }
 
         if len(trajectory_1) > 1 and len(trajectory_2) > 1:
-            max_time = 1.0
-            pathTraj_1 = PathTrajectory(np.flip(trajectory_1, 0), np.array([[0, 0], [1, 1], [max_time, 1]]))
-            pathTraj_2 = PathTrajectory(np.flip(trajectory_2, 0), np.array([[0, 0], [max_time, 1]]))
+            
+            # smooth the trajectories
+            # set car 1 to have a velocity of 2.0 m/s and car 2 to a velocity of 1.0 m/s
+            smoothedTraj_1 = TrajectorySmoothing(np.flip(trajectory_1,0), car1_vel)
+            smoothedTraj_2 = TrajectorySmoothing(np.flip(trajectory_2,0), car2_vel)
+            
+            # calc max time along path between two smoothed trajectories
+            max_time = max(smoothedTraj_1.total_time, smoothedTraj_2.total_time)
+            time_step = 0.02
+                        
+            # calculate s valued points along path
+            pathTraj_1 = PathTrajectory(smoothedTraj_1.get_total_path(time_step), 
+                                        np.array([[0,0],[smoothedTraj_1.total_time, 1]]), smoothedTraj_1.total_time)
+            pathTraj_2 = PathTrajectory(smoothedTraj_2.get_total_path(time_step), 
+                                        np.array([[0,0],[smoothedTraj_2.total_time, 1]]), smoothedTraj_2.total_time)
 
-            velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time)
+            velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time, time_step)
             velocityTuner.tune_velocities()
             pathTraj_2 = velocityTuner.pathTraj_2
-            pathTrajvelcoity_1, pathTrajvelocity_2 = velocityTuner.calculate_trajectory()
+            pathTrajvelcoity_1, pathTrajvelocity_2 = velocityTuner.calculate_trajectory(car1_vel)
 
             # msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]
             # msg["path_length"] = [pathTraj_1.total_path_length, pathTraj_2.total_path_length]
             msg["trajectory_velocity"] = [pathTrajvelcoity_1.tolist(), pathTrajvelocity_2.tolist()]
+            msg["trajectory"] = [pathTraj_1.path.tolist(), pathTraj_2.path.tolist()]
 
         # send calculate path back to car
         socket.send_string(

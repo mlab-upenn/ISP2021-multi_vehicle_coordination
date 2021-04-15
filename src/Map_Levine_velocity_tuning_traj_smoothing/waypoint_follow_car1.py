@@ -202,6 +202,7 @@ class PurePursuitPlanner:
         self.max_reacquire = 20.0
         self.follow_master = follow_master
         self.waypoints = np.array([[0,0],[0,0]])
+        self.prev_largest_idx = 0
 
     def load_waypoints(self, conf):
         # load waypoints
@@ -247,7 +248,7 @@ class PurePursuitPlanner:
         else:
             return None
 
-    def plan(self, pose_x, pose_y, pose_theta, lookahead_distance, vgain):
+    def plan(self, pose_x, pose_y, pose_theta, lookahead_distance, vgain, car):
         position = np.array([pose_x, pose_y])
         if self.follow_master == True:
             lookahead_point = self._get_current_waypoint(
@@ -255,8 +256,8 @@ class PurePursuitPlanner:
             )
         else:
             lookahead_point = np.empty((3,))
-#            print("~~~")
-            for i in range(self.waypoints.shape[0] - 1, 0, -1):
+            
+            for i in range(0, self.waypoints.shape[0] - 1, 1):
 #                print(i)
 #                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
 #                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
@@ -271,21 +272,20 @@ class PurePursuitPlanner:
                     ) >= math.sqrt(
                         (self.goal_pt[0] - self.waypoints[i, 0]) ** 2
                         + (self.goal_pt[1] - self.waypoints[i, 1]) ** 2
-                    ) 
+                    )
                 ):
                     lookahead_point[0] = self.waypoints[i, 0]
                     lookahead_point[1] = self.waypoints[i, 1]
-#                    lookahead_angle = np.dot(np.array([lookahead_point[0],lookahead_point[1]])-position, np.array(1,0))
-#                    print(lookahead_angle)
                     lookahead_point[2] = 3.0
                     break
-        # print("waypoints matrix", self.waypoints)
-        # print("lookahead", lookahead_point)
+                    
         if lookahead_point is None:
             return 4.0, 0.0
         speed, steering_angle = get_actuation(
             pose_theta, lookahead_point, position, lookahead_distance, self.wheelbase
         )
+        print("Car: ",car, "Steering Angle: ",  steering_angle, "Speed: ", speed, "Theta: ", pose_theta)
+        
         speed = vgain * speed
 
         return speed, steering_angle, lookahead_point
@@ -383,7 +383,7 @@ def execute_pure_pursuit(num, q):
     env.render()
     
     planner_1 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
-    planner_2 = PurePursuitPlanner(0.17145 + 0.15875, True, conf)
+    planner_2 = PurePursuitPlanner(0.17145 + 0.15875, False, conf)
 
     laptime = 0.0
     start = time.time()
@@ -424,10 +424,9 @@ def execute_pure_pursuit(num, q):
 
         # convert 1d list to 2d np array
         nptraj_1 = np.array(trajectory[0])
-        nptraj_1 = np.reshape(nptraj_1, (-1, 2))
+#        nptraj_1 = np.reshape(nptraj_1, (-1, 2))
         nptraj_2 = np.array(trajectory[1])
-        nptraj_2 = np.reshape(nptraj_2, (-1, 2))
-
+#        nptraj_2 = np.reshape(nptraj_2, (-1, 2))
         planner_1.update_paths(nptraj_1, goal_pts[0])
         planner_2.update_paths(nptraj_2, goal_pts[1])
         speed_1, steer_1, lookahead_point_1 = planner_1.plan(
@@ -435,7 +434,7 @@ def execute_pure_pursuit(num, q):
             obs["poses_y"][0],
             obs["poses_theta"][0],
             work["tlad"],
-            work["vgain"]
+            work["vgain"], 1
         )
         
         speed_2, steer_2, lookahead_point_2 = planner_2.plan(
@@ -443,8 +442,9 @@ def execute_pure_pursuit(num, q):
             obs["poses_y"][1],
             obs["poses_theta"][1],
             work["tlad"],
-            work["vgain"]
+            work["vgain"], 2
         )
+#        print(steer_2, speed_2)
         
         if time_s != None:
             curr_time = time.time() - prev_time
@@ -452,9 +452,11 @@ def execute_pure_pursuit(num, q):
             if s_idx < len(time_s[1])-1:
                 speed_2 = (path_length[1]*time_s[1][int(s_idx/2)+1][1] - path_length[1]*time_s[1][int(s_idx/2)][1]) / \
                             (time_s[1][int(s_idx/2)+1][0] - time_s[1][int(s_idx/2)][0]) * work["vgain"]
-                            
+            if s_idx < len(time_s[0]) - 1:
+                speed_1 = (path_length[0]*time_s[0][int(s_idx/2)+1][0] - path_length[0]*time_s[0][int(s_idx/2)][0]) / \
+                            (time_s[0][int(s_idx/2)+1][0] - time_s[0][int(s_idx/2)][0]) * work["vgain"]
+
         
-        steer_2 = 0
                 
         # update lookahead point
         if lookahead_point_1 is not None:

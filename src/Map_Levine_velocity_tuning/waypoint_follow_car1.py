@@ -257,10 +257,10 @@ class PurePursuitPlanner:
             lookahead_point = np.empty((3,))
 #            print("~~~")
             if self.waypoints.shape[1] == 2:
-                for i in range(self.waypoints.shape[0] - 1, 0, -1):
-                    #                print(i)
-                    #                print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
-                    #                print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
+                for i in range(self.waypoints.shape[0] - 1):
+#                    print(i)
+#                    print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
+#                    print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
                     if (
                         math.sqrt(
                             (self.waypoints[i, 0] - position[0]) ** 2
@@ -342,7 +342,9 @@ def receive_waypoints(num, q):
     socket = context.socket(zmq.REQ)
     socket.connect("tcp://localhost:5555")
 
-    while True:
+    received = False;
+
+    while not received:
 
         #        if not obs_q.empty():
         #            obs = obs_q.get()
@@ -378,11 +380,14 @@ def receive_waypoints(num, q):
         # deserialize it
         data = json.loads(message)
 
-        trajectory = data["trajectory"]
-
-        if np.size(trajectory[0]) != 0:
-            # add data to shared queue
-            q.put(data)
+        if "trajectory_velocity" in data:
+            trajectory = data["trajectory_velocity"]
+    
+            if np.size(trajectory[0]) != 0:
+                # add data to shared queue
+                q.put(data)
+                received = True
+            
 
 
 def execute_pure_pursuit(num, q):
@@ -451,13 +456,6 @@ def execute_pure_pursuit(num, q):
             nptraj_2 = np.array(trajectory[1])
             nptraj_2 = np.reshape(nptraj_2, (-1, 2))
 
-            # # get the velocity tuned data
-            # if "time_s" in data:
-            #     time_s = data["time_s"]
-            #     time_s_2 = np.array(time_s[1])  # for now, just retrieve car 2's velocity tuned data since
-            #     # it's only thing that will be changed
-            #     path_length = data["path_length"]  # used for calculating speed
-
             # get the velocity tuned data
             if "trajectory_velocity" in data:
                 trajectory_velocity = data["trajectory_velocity"]
@@ -466,7 +464,7 @@ def execute_pure_pursuit(num, q):
                 nptraj_1 = np.array(trajectory_velocity_1)
                 nptraj_1 = np.reshape(nptraj_1, (-1, 3))
                 nptraj_2 = np.array(trajectory_velocity_2)
-                nptraj_2 = np.reshape(nptraj_2, (-1, 3))
+                nptraj_2 = np.reshape(nptraj_2, (-1, 4))
 
             # send data to renderer for visualization
 #            env.renderer.update_laser_scan_obst(laser_scan_obst, 2)
@@ -476,6 +474,8 @@ def execute_pure_pursuit(num, q):
 
         planner_1.update_paths(nptraj_1, goal_pts[0])
         planner_2.update_paths(nptraj_2, goal_pts[1])
+        
+        
         speed_1, steer_1, lookahead_point_1 = planner_1.plan(
             obs["poses_x"][0],
             obs["poses_y"][0],
@@ -490,26 +490,12 @@ def execute_pure_pursuit(num, q):
             obs["poses_theta"][1],
             work["tlad"],
             work["vgain"],
-            # work["vgain"] / 2,
         )
-
-        # # I don't think this is the way we should do it in the long term, but
-        # # it was just a first shot. This gets the current time t of the current
-        # # update from master. t is then rounded down to the nearest hundredth digit
-        # # and is then multiplied by 100 to get the index. This index is used to
-        # # retrieve the s value at the given t, which we received from master.
-        # # this is then used to calculate the current speed car 2 should be going.
-        # # not really working though since time is not perfectly aligned with
-        # # the actual position of the car due to delay. More ideal would be
-        # # doing some sort of MPC. It also stops working if we don't get an update
-        # # after the max_time. You can also play around with test_plot.py as this
-        # # has some sample data
-        # curr_time = time.time()
-        # t = round(curr_time - prev_time, 2)
-        # if time_s_2.shape[0] > 0:
-        #     if int(t * 100) < time_s_2.shape[0] - 1:
-        #         curr_idx = int(t * 100)
-        #         speed_2 = (time_s_2[curr_idx + 1][1] - time_s_2[curr_idx][1]) * path_length[1] / 0.01
+        
+        curr_time = time.time() - prev_time
+        curr_time_idx = int(100 * float(curr_time) / 2)
+        if curr_time_idx < len(nptraj_2) - 1:
+            speed_2 = nptraj_2[curr_time_idx, 2]
 
         # update lookahead point
         if lookahead_point_1 is not None:
@@ -518,7 +504,9 @@ def execute_pure_pursuit(num, q):
         obs, step_reward, done, info = env.step(
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
-
+        
+        
+        
         time.sleep(0.01)
 
         laptime += step_reward
