@@ -9,10 +9,10 @@ map_ext: '.pgm'
 
 # starting pose for map
 sx: -5.0
-sy: -0.5
+sy: 0.0
 stheta: 0.0
 
-oppx: -5.0
+oppx: -3.0
 oppy: 0.0
 opptheta: 0.0
 

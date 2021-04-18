@@ -40,7 +40,7 @@ class VelocityTuner:
                 curr_c2_pos = c2_traj.update(t2)
 
                 # calculate if the two cars collide
-                if (np.linalg.norm(curr_c1_pos - curr_c2_pos) < 2):
+                if (np.linalg.norm(curr_c1_pos - curr_c2_pos) < 1):
 
                     # if they collide, then find the time parameterized value along the path
                     # that corresponds to this time

@@ -492,7 +492,7 @@ def execute_pure_pursuit(num, q):
             work["vgain"],
         )
         
-        curr_time = time.time() - prev_time
+        curr_time = time.time() - prev_time -.15
         curr_time_idx = int(100 * float(curr_time) / 2)
         if curr_time_idx < len(nptraj_2) - 1:
             speed_2 = nptraj_2[curr_time_idx, 2]

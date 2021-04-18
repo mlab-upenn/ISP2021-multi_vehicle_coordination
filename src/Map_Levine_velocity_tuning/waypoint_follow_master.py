@@ -361,10 +361,14 @@ class RRT:
                 (y_coordinate - self.y_curr) ** 2 + (x_coordinate - self.x_curr) ** 2
             ) * math.sin(alpha - self.theta_curr)
             if (
-                x_diff >= -0.15
-                and x_diff <= 0.45
-                and y_diff >= -0.15
-                and y_diff <= 0.15
+#                x_diff >= -0.15
+#                and x_diff <= 0.45
+#                and y_diff >= -0.15
+#                and y_diff <= 0.15
+                x_diff >= -0.25
+                and x_diff <= 0.7
+                and y_diff >= -0.25
+                and y_diff <= 0.25
             ):
                 continue
             elif occupancy_grids[coordinate[0], coordinate[1]] != 0:
@@ -544,7 +548,8 @@ if __name__ == "__main__":
 #         [-2.39992338e+00,  3.78900126e-02],
 #         [-2.99872352e+00,  1.88647965e-08]])
         
-        car1_vel = 2.5
+        # car velocities
+        car1_vel = 5.0
         car2_vel = 2.5
 
         msg = {
@@ -576,8 +581,6 @@ if __name__ == "__main__":
             pathTraj_2 = velocityTuner.pathTraj_2
             pathTrajvelcoity_1, pathTrajvelocity_2 = velocityTuner.calculate_trajectory(car1_vel)
 
-            # msg["time_s"] = [pathTraj_1.time_s.tolist(), pathTraj_2.time_s.tolist()]
-            # msg["path_length"] = [pathTraj_1.total_path_length, pathTraj_2.total_path_length]
             msg["trajectory_velocity"] = [pathTrajvelcoity_1.tolist(), pathTrajvelocity_2.tolist()]
             msg["trajectory"] = [pathTraj_1.path.tolist(), pathTraj_2.path.tolist()]
 
