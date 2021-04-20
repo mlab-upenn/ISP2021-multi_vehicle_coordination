@@ -258,9 +258,9 @@ class PurePursuitPlanner:
 #            print("~~~")
             if self.waypoints.shape[1] == 2:
                 for i in range(self.waypoints.shape[0] - 1):
-#                    print(i)
-#                    print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
-#                    print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
+                    #                    print(i)
+                    #                    print("goal point", math.sqrt((self.goal_pt[0] - position[0])** 2 + (self.goal_pt[1] - position[1])** 2))
+                    #                    print("waypoint", math.sqrt((self.waypoints[i, 0] - position[0]) ** 2 + (self.waypoints[i, 1] - position[1]) ** 2))
                     if (
                         math.sqrt(
                             (self.waypoints[i, 0] - position[0]) ** 2
@@ -342,7 +342,7 @@ def receive_waypoints(num, q):
     socket = context.socket(zmq.REQ)
     socket.connect("tcp://localhost:5555")
 
-    received = False;
+    received = False
 
     while not received:
 
@@ -382,12 +382,11 @@ def receive_waypoints(num, q):
 
         if "trajectory_velocity" in data:
             trajectory = data["trajectory_velocity"]
-    
+
             if np.size(trajectory[0]) != 0:
                 # add data to shared queue
                 q.put(data)
                 received = True
-            
 
 
 def execute_pure_pursuit(num, q):
@@ -402,7 +401,7 @@ def execute_pure_pursuit(num, q):
         "mass": 3.463388126201571,
         "lf": 0.15597534362552312,
         "tlad": 0.70,
-        "vgain": 0.90338203837889,
+        "vgain": 1.00,  # 0.90338203837889
     }
 
     with open("config_example_map.yaml") as file:
@@ -474,8 +473,10 @@ def execute_pure_pursuit(num, q):
 
         planner_1.update_paths(nptraj_1, goal_pts[0])
         planner_2.update_paths(nptraj_2, goal_pts[1])
-        
-        
+
+        print(nptraj_1)
+        print(nptraj_2)
+
         speed_1, steer_1, lookahead_point_1 = planner_1.plan(
             obs["poses_x"][0],
             obs["poses_y"][0],
@@ -491,8 +492,9 @@ def execute_pure_pursuit(num, q):
             work["tlad"],
             work["vgain"],
         )
-        
-        curr_time = time.time() - prev_time -.15
+
+        # curr_time = time.time() - prev_time - .15
+        curr_time = laptime
         curr_time_idx = int(100 * float(curr_time) / 2)
         if curr_time_idx < len(nptraj_2) - 1:
             speed_2 = nptraj_2[curr_time_idx, 2]
@@ -504,12 +506,15 @@ def execute_pure_pursuit(num, q):
         obs, step_reward, done, info = env.step(
             np.array([[steer_1, speed_1], [steer_2, speed_2]])
         )
-        
-        
-        
+
         time.sleep(0.01)
 
         laptime += step_reward
+        # print('time:', laptime)
+        # print('desired speed:', speed_1)
+        # print('actual speed:', obs['linear_vels_x'][0])
+        # print('desired speed:', speed_2)
+        # print('actual speed:', obs['linear_vels_x'][1])
         env.render(mode="human")
 #        obs_q.put(obs)
 

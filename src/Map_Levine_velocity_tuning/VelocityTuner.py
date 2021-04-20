@@ -13,7 +13,7 @@ from matplotlib.animation import FuncAnimation
 
 
 class VelocityTuner:
-    def __init__(self, pathTraj_1, pathTraj_2, max_time, time_step):
+    def __init__(self, pathTraj_1, pathTraj_2, max_time, time_step, car1_vel, car2_vel):
         self.pathTraj_1 = pathTraj_1
         self.pathTraj_2 = pathTraj_2
         self.max_time = int(max_time)
@@ -21,6 +21,8 @@ class VelocityTuner:
         self.vec_plan_space = []
         self.min_obstacle = []
         self.max_obstacle = []
+        self.car1_vel = car1_vel
+        self.car2_vel = car2_vel
 
     def tune_velocities(self):
         """
@@ -40,7 +42,7 @@ class VelocityTuner:
                 curr_c2_pos = c2_traj.update(t2)
 
                 # calculate if the two cars collide
-                if (np.linalg.norm(curr_c1_pos - curr_c2_pos) < 1):
+                if (np.linalg.norm(curr_c1_pos - curr_c2_pos) < 0.5):
 
                     # if they collide, then find the time parameterized value along the path
                     # that corresponds to this time
@@ -76,7 +78,9 @@ class VelocityTuner:
             y <= np.ones(n)
         ]
         for i in range(n - 1):
-            constraints += [s[i] - s[i + 1] <= 0, s[i + 1] - s[i] <= self.time_step/self.max_time]
+            constraints += [s[i] - s[i + 1] <= 0, s[i + 1] - s[i] <= self.time_step / self.max_time]
+            # constraints += [s[i] - s[i + 1] <= 0, s[i + 1] - s[i] <=
+            #                 self.car_2_max_vel / self.pathTraj_2.total_path_length * self.time_step / self.max_time]
 
         for i in range(len(self.min_obstacle)):
             if self.min_obstacle[i] is not None:
@@ -93,7 +97,7 @@ class VelocityTuner:
 
         # reset the pathTraj_2's velocity tuning to be time_fxn_2
         self.pathTraj_2 = PathTrajectory(self.pathTraj_2.path, time_fxn_2, self.pathTraj_2.total_time)
-        
+
         self.vec_plan_space = np.array(self.vec_plan_space)
         # time-s figure
         if len(self.vec_plan_space) > 0:
@@ -125,12 +129,13 @@ class VelocityTuner:
         t_arr = []
 
         for t in np.arange(0.0, self.max_time, self.time_step):
-#            x_2_t, y_2_t, v_2_t = self.pathTraj_2.determine_waypoint(t, self.pathTraj_1.total_path_length)
-#            x_1_t, y_1_t, v_1_t = self.pathTraj_1.determine_waypoint(t)
+            #            x_2_t, y_2_t, v_2_t = self.pathTraj_2.determine_waypoint(t, self.pathTraj_1.total_path_length)
+            #            x_1_t, y_1_t, v_1_t = self.pathTraj_1.determine_waypoint(t)
             x_2_t, y_2_t, v_2_t = self.pathTraj_2.determine_waypoint(t)
 #            x_1.append(x_1_t)
 #            y_1.append(y_1_t)
 #            v_1.append(v_1_t)
+            v_2_t = v_2_t * self.max_time
             x_2.append(x_2_t)
             y_2.append(y_2_t)
             v_2.append(v_2_t)

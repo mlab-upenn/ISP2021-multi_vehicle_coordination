@@ -35,7 +35,7 @@ CAR_WIDTH = 0.31
 def get_laser_scan_obstacles():
     """
     Returns list of grid points that the occupancy grid views as occupied in the
-    global frame. 
+    global frame.
     """
     laser_scan_obst = []
     return laser_scan_obst
@@ -361,10 +361,10 @@ class RRT:
                 (y_coordinate - self.y_curr) ** 2 + (x_coordinate - self.x_curr) ** 2
             ) * math.sin(alpha - self.theta_curr)
             if (
-#                x_diff >= -0.15
-#                and x_diff <= 0.45
-#                and y_diff >= -0.15
-#                and y_diff <= 0.15
+                #                x_diff >= -0.15
+                #                and x_diff <= 0.45
+                #                and y_diff >= -0.15
+                #                and y_diff <= 0.15
                 x_diff >= -0.25
                 and x_diff <= 0.7
                 and y_diff >= -0.25
@@ -415,9 +415,9 @@ class RRT:
         return found_path
 
     """
-    This method calculates the estimated angle that the car will be at for a 
-    given segment in the path. Used to 
-    Args: 
+    This method calculates the estimated angle that the car will be at for a
+    given segment in the path. Used to
+    Args:
         (x1, y1) - global coords of first point
         (x2, y2) - global coords of second point
     Returns:
@@ -517,37 +517,71 @@ if __name__ == "__main__":
 
         trajectory_1 = rrt_1.find_path()
         trajectory_2 = rrt_2.find_path()
-        
-#        trajectory_1 = np.array([[ 2.22374142e+00, -3.79893641e-03],
-#         [ 1.63769408e+00,  3.30800844e-02],
-#         [ 1.07068519e+00, -2.75612004e-02],
-#         [ 6.65643282e-01, -1.51545069e-01],
-#         [ 7.94652784e-02, -2.07459981e-01],
-#         [-2.18877129e-01, -2.38952966e-01],
-#         [-8.13397358e-01, -2.63592846e-01],
-#         [-1.38573766e+00, -3.71340052e-01],
-#         [-1.96368019e+00, -5.18964665e-01],
-#         [-2.37448779e+00, -4.63992759e-01],
-#         [-2.96652200e+00, -5.43226038e-01],
-#         [-3.54476297e+00, -3.99039045e-01],
-#         [-3.86796226e+00, -2.06865596e-01],
-#         [-4.45580315e+00, -1.74883870e-01],
-#         [-4.99744705e+00, -7.54591859e-08]])
-#        trajectory_2 = np.array([[ 4.09344206e+00, -1.75239803e-01],
-#         [ 3.79392378e+00, -1.58245731e-01],
-#         [ 3.20005712e+00, -1.61349176e-01],
-#         [ 2.61035169e+00, -2.22532707e-01],
-#         [ 2.07353467e+00, -1.28643557e-01],
-#         [ 1.77660251e+00, -8.58499525e-02],
-#         [ 1.19250716e+00,  2.99515409e-02],
-#         [ 5.94109720e-01,  6.82018614e-02],
-#         [-5.42762556e-03,  5.20939999e-02],
-#         [-6.03895385e-01,  6.63778575e-02],
-#         [-1.20257923e+00,  7.74802401e-02],
-#         [-1.80084216e+00,  6.52300186e-02],
-#         [-2.39992338e+00,  3.78900126e-02],
-#         [-2.99872352e+00,  1.88647965e-08]])
-        
+
+        # trajectory_1 = np.array([[2.22374142e+00, -3.79893641e-03],
+        #                          [1.63769408e+00, 3.30800844e-02],
+        #                          [1.07068519e+00, -2.75612004e-02],
+        #                          [6.65643282e-01, -1.51545069e-01],
+        #                          [7.94652784e-02, -2.07459981e-01],
+        #                          [-2.18877129e-01, -2.38952966e-01],
+        #                          [-8.13397358e-01, -2.63592846e-01],
+        #                          [-1.38573766e+00, -3.71340052e-01],
+        #                          [-1.96368019e+00, -5.18964665e-01],
+        #                          [-2.37448779e+00, -4.63992759e-01],
+        #                          [-2.96652200e+00, -5.43226038e-01],
+        #                          [-3.54476297e+00, -3.99039045e-01],
+        #                          [-3.86796226e+00, -2.06865596e-01],
+        #                          [-4.45580315e+00, -1.74883870e-01],
+        #                          [-4.99744705e+00, -7.54591859e-08],
+        #                          [-6.00, 0.00]])
+        # trajectory_2 = np.array([[4.09344206e+00, -1.75239803e-01],
+        #                          [3.79392378e+00, -1.58245731e-01],
+        #                          [3.20005712e+00, -1.61349176e-01],
+        #                          [2.61035169e+00, -2.22532707e-01],
+        #                          [2.07353467e+00, -1.28643557e-01],
+        #                          [1.77660251e+00, -8.58499525e-02],
+        #                          [1.19250716e+00, 2.99515409e-02],
+        #                          [5.94109720e-01, 6.82018614e-02],
+        #                          [-5.42762556e-03, 5.20939999e-02],
+        #                          [-6.03895385e-01, 6.63778575e-02],
+        #                          [-1.20257923e+00, 7.74802401e-02],
+        #                          [-1.80084216e+00, 6.52300186e-02],
+        #                          [-2.39992338e+00, 3.78900126e-02],
+        #                          [-2.99872352e+00, 1.88647965e-08],
+        #                          [-4.00, 0.0]])
+
+        trajectory_1 = np.array([[2.04117128, -0.33534203],
+                                [1.72416534, -0.15828331],
+                                [1.14138044, -0.29118464],
+                                [0.55813532, -0.32329115],
+                                [-0.0351526, -0.37306322],
+                                [-0.33369199, -0.40263061],
+                                [-0.92803742, -0.45088562],
+                                [-1.22798445, -0.45652284],
+                                [-1.82779155, -0.46004741],
+                                [-2.42128061, -0.53211766],
+                                [-2.71980098, -0.56187649],
+                                [-3.27882359, -0.41697436],
+                                [-3.67406111, -0.236767],
+                                [-4.10119613, -0.08431834],
+                                [-4.40387092, -0.03784422],
+                                [-5., 0.00]])
+        trajectory_2 = np.array([[4.21354575, -0.12415569],
+                                [3.63250179, -0.1354609],
+                                [3.0443917, -0.04517407],
+                                [2.45393767, -0.01533158],
+                                [2.04346969, -0.2011802],
+                                [1.45277019, -0.30579739],
+                                [0.86162937, -0.38888643],
+                                [0.45444382, -0.34958835],
+                                [0.17434912, -0.26661356],
+                                [-0.21810077, -0.22938982],
+                                [-0.63000642, -0.18736373],
+                                [-1.22962711, -0.17005459],
+                                [-1.80427051, -0.08060409],
+                                [-2.40139147, -0.03365969],
+                                [-3., 0.00]])
+
         # car velocities
         car1_vel = 5.0
         car2_vel = 2.5
@@ -560,23 +594,23 @@ if __name__ == "__main__":
         }
 
         if len(trajectory_1) > 1 and len(trajectory_2) > 1:
-            
+
             # smooth the trajectories
             # set car 1 to have a velocity of 2.0 m/s and car 2 to a velocity of 1.0 m/s
-            smoothedTraj_1 = TrajectorySmoothing(np.flip(trajectory_1,0), car1_vel)
-            smoothedTraj_2 = TrajectorySmoothing(np.flip(trajectory_2,0), car2_vel)
-            
+            smoothedTraj_1 = TrajectorySmoothing(np.flip(trajectory_1, 0), car1_vel)
+            smoothedTraj_2 = TrajectorySmoothing(np.flip(trajectory_2, 0), car2_vel)
+
             # calc max time along path between two smoothed trajectories
             max_time = max(smoothedTraj_1.total_time, smoothedTraj_2.total_time)
             time_step = 0.02
-                        
-            # calculate s valued points along path
-            pathTraj_1 = PathTrajectory(smoothedTraj_1.get_total_path(time_step), 
-                                        np.array([[0,0],[smoothedTraj_1.total_time, 1]]), smoothedTraj_1.total_time)
-            pathTraj_2 = PathTrajectory(smoothedTraj_2.get_total_path(time_step), 
-                                        np.array([[0,0],[smoothedTraj_2.total_time, 1]]), smoothedTraj_2.total_time)
 
-            velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time, time_step)
+            # calculate s valued points along path
+            pathTraj_1 = PathTrajectory(smoothedTraj_1.get_total_path(time_step),
+                                        np.array([[0, 0], [smoothedTraj_1.total_time, 1]]), smoothedTraj_1.total_time)
+            pathTraj_2 = PathTrajectory(smoothedTraj_2.get_total_path(time_step),
+                                        np.array([[0, 0], [smoothedTraj_2.total_time, 1]]), smoothedTraj_2.total_time)
+
+            velocityTuner = VelocityTuner(pathTraj_1, pathTraj_2, max_time, time_step, car1_vel, car2_vel)
             velocityTuner.tune_velocities()
             pathTraj_2 = velocityTuner.pathTraj_2
             pathTrajvelcoity_1, pathTrajvelocity_2 = velocityTuner.calculate_trajectory(car1_vel)

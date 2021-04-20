@@ -31,8 +31,8 @@ class PathTrajectory:
         self.curr_vec = np.array(path[1] - path[0])
 
         # velocity of the first vehicle
-        self.velocity_car_1 = 3.0
-        
+        # self.velocity_car_1 = 3.0
+
         # total time it takes to traverse path
         self.total_time = total_time
 
@@ -46,18 +46,18 @@ class PathTrajectory:
         """
 
         # increment current segment idx in time_s array
-        if t > self.time_s[self.curr_s_seg+1, 0]:
-            
+        if t > self.time_s[self.curr_s_seg + 1, 0]:
+
             if self.curr_s_seg + 1 < len(self.time_s) - 1:
                 self.curr_s_seg += 1
             else:
-                t = self.time_s[self.curr_s_seg+1,0]
-            
+                t = self.time_s[self.curr_s_seg + 1, 0]
+
         # increment current segment idx in path array
-        if self.s > self.path_s[self.curr_path_seg+1]:
-            if self.curr_path_seg + 1 < len(self.path_s)-1:
+        if self.s > self.path_s[self.curr_path_seg + 1]:
+            if self.curr_path_seg + 1 < len(self.path_s) - 1:
                 self.curr_path_seg += 1
-            self.curr_vec = np.array(self.path[self.curr_path_seg+1]-\
+            self.curr_vec = np.array(self.path[self.curr_path_seg + 1] -
                                      self.path[self.curr_path_seg])
 
         # calc speed in units of s/time
@@ -90,18 +90,18 @@ class PathTrajectory:
             OUT: x, y, v - current x, y, v value
         """
         # increment current segment idx in time_s array
-        if t > self.time_s[self.curr_s_seg+1, 0]:
-            
+        if t > self.time_s[self.curr_s_seg + 1, 0]:
+
             if self.curr_s_seg + 1 < len(self.time_s) - 1:
                 self.curr_s_seg += 1
             else:
-                t = self.time_s[self.curr_s_seg+1,0]
-            
+                t = self.time_s[self.curr_s_seg + 1, 0]
+
         # increment current segment idx in path array
-        if self.s > self.path_s[self.curr_path_seg+1]:
-            if self.curr_path_seg + 1 < len(self.path_s)-1:
+        if self.s > self.path_s[self.curr_path_seg + 1]:
+            if self.curr_path_seg + 1 < len(self.path_s) - 1:
                 self.curr_path_seg += 1
-            self.curr_vec = np.array(self.path[self.curr_path_seg+1]-\
+            self.curr_vec = np.array(self.path[self.curr_path_seg + 1] -
                                      self.path[self.curr_path_seg])
 
         # calc speed in units of s/time
@@ -124,7 +124,9 @@ class PathTrajectory:
 
         # calculate current velocity of vehicle
 #        vel = time_s_speed * self.velocity_car_1 * self.total_path_length / path_length_vehicle_1
-        vel = time_s_speed * self.total_path_length / self.total_time * 2
+        print(self.total_path_length)
+        print(self.total_time)
+        vel = time_s_speed * self.total_path_length / self.total_time
 
         return pos[0], pos[1], vel
 
