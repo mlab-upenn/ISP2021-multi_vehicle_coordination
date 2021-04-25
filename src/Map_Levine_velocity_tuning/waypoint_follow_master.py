@@ -505,6 +505,7 @@ if __name__ == "__main__":
 
         rrt_1 = RRT(obs[0], True)
         rrt_2 = RRT(obs[1], True)
+        time_step = obs[2][0]
 
         occupancy_grids = get_occupancy_grid()
         laser_scan_obst = get_laser_scan_obstacles()
@@ -584,7 +585,7 @@ if __name__ == "__main__":
 
         # car velocities
         car1_vel = 5.0
-        car2_vel = 2.5
+        car2_vel = 3.0
 
         msg = {
             "goal_pts": [rrt_1.goal_pt, rrt_2.goal_pt],
@@ -602,7 +603,6 @@ if __name__ == "__main__":
 
             # calc max time along path between two smoothed trajectories
             max_time = max(smoothedTraj_1.total_time, smoothedTraj_2.total_time)
-            time_step = 0.02
 
             # calculate s valued points along path
             pathTraj_1 = PathTrajectory(smoothedTraj_1.get_total_path(time_step),

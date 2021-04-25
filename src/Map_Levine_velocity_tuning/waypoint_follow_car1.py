@@ -323,7 +323,7 @@ def get_goal_point(goal_car_curr_pos):
 
 #    return [10,0]
 
-def receive_waypoints(num, q):
+def receive_waypoints(num, q, time_step):
     """
     Listener thread for receiving trajectory information from master node. 
     If this thread receives a trajectory from the master, it will push it to 
@@ -370,6 +370,9 @@ def receive_waypoints(num, q):
                         obs["poses_theta"][1],
                         (obs["scans"][1]).tolist(),
                     ],
+                    [
+                        time_step
+                    ],
                 ]
             )
         )
@@ -389,7 +392,7 @@ def receive_waypoints(num, q):
                 received = True
 
 
-def execute_pure_pursuit(num, q):
+def execute_pure_pursuit(num, q, time_step):
     """
     Executes the pure pursuit algorithm without waiting for the RRT* planner
 
@@ -474,8 +477,8 @@ def execute_pure_pursuit(num, q):
         planner_1.update_paths(nptraj_1, goal_pts[0])
         planner_2.update_paths(nptraj_2, goal_pts[1])
 
-        print(nptraj_1)
-        print(nptraj_2)
+        # print(nptraj_1)
+        # print(nptraj_2)
 
         speed_1, steer_1, lookahead_point_1 = planner_1.plan(
             obs["poses_x"][0],
@@ -495,9 +498,12 @@ def execute_pure_pursuit(num, q):
 
         # curr_time = time.time() - prev_time - .15
         curr_time = laptime
-        curr_time_idx = int(100 * float(curr_time) / 2)
+        curr_time_idx = int(float(curr_time) / time_step)
         if curr_time_idx < len(nptraj_2) - 1:
             speed_2 = nptraj_2[curr_time_idx, 2]
+
+        print('time: ', laptime, 'planned velocity: ', speed_2, 'actual velocity: ', obs["linear_vels_x"][1], 'distance: ', np.sqrt((obs["poses_x"][0] - obs["poses_x"][1]) * (obs["poses_x"][0] - obs["poses_x"]
+              [1]) + (obs["poses_y"][0] - obs["poses_y"][1]) * (obs["poses_y"][0] - obs["poses_y"][1])))
 
         # update lookahead point
         if lookahead_point_1 is not None:
@@ -546,8 +552,11 @@ if __name__ == "__main__":
     # queue of data received from master
     data_q = queue.Queue()
 
+    # time_step for planning
+    time_step = 0.01
+
     # Create 2 separate threads for listening for the
-    receive_msg_thread = threading.Thread(target=receive_waypoints, args=(0, data_q))
-    purepursuit_thread = threading.Thread(target=execute_pure_pursuit, args=(0, data_q))
+    receive_msg_thread = threading.Thread(target=receive_waypoints, args=(0, data_q, time_step))
+    purepursuit_thread = threading.Thread(target=execute_pure_pursuit, args=(0, data_q, time_step))
     purepursuit_thread.start()
     receive_msg_thread.start()

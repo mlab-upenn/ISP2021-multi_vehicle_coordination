@@ -16,7 +16,7 @@ class VelocityTuner:
     def __init__(self, pathTraj_1, pathTraj_2, max_time, time_step, car1_vel, car2_vel):
         self.pathTraj_1 = pathTraj_1
         self.pathTraj_2 = pathTraj_2
-        self.max_time = int(max_time)
+        self.max_time = int(max_time)  # there is no need to consider the max time, min time is enough
         self.time_step = time_step
         self.vec_plan_space = []
         self.min_obstacle = []
@@ -29,10 +29,12 @@ class VelocityTuner:
         Tunes the velocities
         """
 
-        # iterate thru time
-        for t in np.arange(0.0, self.max_time, self.time_step):
+        c1_pos = self.pathTraj_1.constant_velocity_trajectory(self.time_step, self.max_time, self.car1_vel)
 
-            curr_c1_pos = self.pathTraj_1.update(t)
+        # iterate thru time
+        for i in range(0, int(self.max_time / self.time_step)):
+
+            curr_c1_pos = c1_pos[i, :]
 
             found_collision = []
 
@@ -49,7 +51,7 @@ class VelocityTuner:
                     s = c2_traj.s
 
                     # append to array for plotting
-                    self.vec_plan_space.append([t, s])
+                    self.vec_plan_space.append([i * self.time_step, s])
                     found_collision.append(s)
             if len(found_collision) > 0:
                 found_collision = np.array(found_collision)
@@ -67,47 +69,71 @@ class VelocityTuner:
         Apply the optimization solver
         """
         n = int(self.max_time / self.time_step)
+        v_targeted = cp.Variable(n - 1, nonneg=True)
+        y = cp.Variable(n, boolean=True)
+        v_true = cp.Variable(n, nonneg=True)
         s = cp.Variable(n, nonneg=True)
-        y = cp.Variable(n, integer=True)
+        # delta = cp.Variable(n - 1, boolean=True)
+        # z = cp.Variable(n - 1, nonneg=True)
 
-        M = float(self.max_time / self.time_step)
+        M_s = float(self.max_time / self.time_step)
+        # m_delta = - self.car2_vel
+        # M_delta = self.car2_vel
         constraints = [
+            v_true[0] == 0.0,
             s[0] == 0.0,
             s <= np.ones(n),
-            y >= np.zeros(n),
-            y <= np.ones(n)
+            v_true <= np.full(n, self.car2_vel),
         ]
         for i in range(n - 1):
-            constraints += [s[i] - s[i + 1] <= 0, s[i + 1] - s[i] <= self.time_step / self.max_time]
-            # constraints += [s[i] - s[i + 1] <= 0, s[i + 1] - s[i] <=
-            #                 self.car_2_max_vel / self.pathTraj_2.total_path_length * self.time_step / self.max_time]
+            constraints += [v_targeted[i] <= self.car2_vel]
+            constraints += [s[i + 1] == s[i] + v_true[i] * self.time_step / self.pathTraj_2.total_path_length]
+            constraints += [v_true[i + 1] == v_true[i] + 2.0 * 9.51 /
+                            20.0 * (v_targeted[i] - v_true[i]) * self.time_step]
+            constraints += [v_targeted[i] >= v_true[i]]  # use this if the hybrid approach does not work
+            # constraints += [v_true[i + 1] == v_true[i] + 2.0 * 9.51 /
+            #                 5.0 * (v_targeted[i] - v_true[i]) * self.time_step + (2.0 * 9.51 /
+            #                 20.0 - 2.0 * 9.51 / 5.0) * self.time_step * z[i]]
+            # constraints += [-m_delta * delta[i] <= v_targeted[i] - v_true[i] - m_delta,
+            #                 -(M_delta + 0.00000001) * delta[i] <= - (v_targeted[i] - v_true[i]) - 0.00000001]
+            # constraints += [z[i] <= M_delta * delta[i],
+            #                 z[i] >= m_delta * delta[i]]
+            # constraints += [z[i] <= v_targeted[i] - v_true[i] - m_delta * (1 - delta[i]),
+            #                 z[i] >= v_targeted[i] - v_true[i] - M_delta * (1 - delta[i])]
 
         for i in range(len(self.min_obstacle)):
             if self.min_obstacle[i] is not None:
-                constraints += [self.max_obstacle[i] - s[i] <= M * (1 - y[i]),
-                                s[i] - self.min_obstacle[i] <= M * y[i]]
+                constraints += [self.max_obstacle[i] - s[i] <= M_s * (1 - y[i]),
+                                s[i] - self.min_obstacle[i] <= M_s * y[i]]
 
         objective = cp.Maximize(cp.sum(s))
         prob = cp.Problem(objective,
                           constraints)
-        prob.solve()
+        prob.solve(verbose=True)
         s_2 = np.array(s.value).reshape((n, 1))
         t_2 = np.arange(0, self.max_time, self.time_step).reshape((n, 1))
         time_fxn_2 = np.hstack((t_2, s_2))
 
         # reset the pathTraj_2's velocity tuning to be time_fxn_2
         self.pathTraj_2 = PathTrajectory(self.pathTraj_2.path, time_fxn_2, self.pathTraj_2.total_time)
+        self.target_velocity = np.array(v_targeted.value).reshape((n - 1, 1))
 
         self.vec_plan_space = np.array(self.vec_plan_space)
         # time-s figure
         if len(self.vec_plan_space) > 0:
-            plt.figure(1)
+            plt.figure(2)
             plt.plot(self.vec_plan_space[:, 0], self.vec_plan_space[:, 1], 'b.')
             plt.plot(np.arange(0, float(self.max_time), self.time_step), s.value)
             plt.axis([0, self.max_time, 0, 1])
             plt.xlabel('Time (sec)')
             plt.ylabel('Percent Along Path')
             plt.title('Velocity Planning Obstacles for Car 2')
+            plt.show()
+            plt.figure(3)
+            plt.plot(np.arange(0, float(self.max_time - self.time_step), self.time_step), v_targeted.value)
+            plt.plot(np.arange(0, float(self.max_time), self.time_step), v_true.value)
+            plt.xlabel('Time (sec)')
+            plt.ylabel('Target and true velocity')
             plt.show()
         else:
             print("No collisions along path")
@@ -127,19 +153,25 @@ class VelocityTuner:
         y_2 = []
         v_2 = []
         t_arr = []
+        iterator = 0
 
         for t in np.arange(0.0, self.max_time, self.time_step):
             #            x_2_t, y_2_t, v_2_t = self.pathTraj_2.determine_waypoint(t, self.pathTraj_1.total_path_length)
             #            x_1_t, y_1_t, v_1_t = self.pathTraj_1.determine_waypoint(t)
             x_2_t, y_2_t, v_2_t = self.pathTraj_2.determine_waypoint(t)
+            if iterator < self.target_velocity.shape[0]:
+                v_2_t = self.target_velocity[iterator, 0]
+            else:
+                v_2_t = 0.0
 #            x_1.append(x_1_t)
 #            y_1.append(y_1_t)
 #            v_1.append(v_1_t)
-            v_2_t = v_2_t * self.max_time
+            # v_2_t = v_2_t * self.max_time
             x_2.append(x_2_t)
             y_2.append(y_2_t)
             v_2.append(v_2_t)
             t_arr.append(t)
+            iterator = iterator + 1
 #        x_1 = np.array(x_1).reshape((-1, 1))
 #        y_1 = np.array(y_1).reshape((-1, 1))
 #        v_1 = np.array(v_1).reshape((-1, 1))

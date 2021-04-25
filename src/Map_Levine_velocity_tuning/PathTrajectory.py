@@ -21,6 +21,9 @@ class PathTrajectory:
         # current percent along the total path traveled
         self.s = 0
 
+        # current velocity in m/s
+        self.v = 0
+
         # the current segment idx in the path_s array
         self.curr_path_seg = 0
 
@@ -80,6 +83,59 @@ class PathTrajectory:
 
         return pos
 
+    def constant_velocity_trajectory(self, d_t, max_time, v):
+        """
+        Returns the positions along the path discretized at the given d_t value, following constant target velocity v and the underlying lower-level pd controller
+
+        Args:
+            IN: d_t - discrete time steps
+                max_time - maximum time for the simulation
+                v - constant target velocity
+            OUT: pos - n * 2 np array of positions
+        """
+
+        pos = []
+        s_array = []
+
+        for t in np.arange(0.0, max_time, d_t):
+            # increment current segment idx in path array
+            if self.s > self.path_s[self.curr_path_seg + 1]:
+                if self.curr_path_seg + 1 < len(self.path_s) - 1:
+                    self.curr_path_seg += 1
+                self.curr_vec = np.array(self.path[self.curr_path_seg + 1] -
+                                         self.path[self.curr_path_seg])
+
+            # calc speed in units of s/time
+            time_s_speed = self.v / self.total_path_length
+            if self.v <= v:
+                self.v = self.v + 2.0 * 9.51 / 20.0 * (v - self.v) * d_t
+            else:
+                self.v = self.v + 2.0 * 9.51 / 5.0 * (v - self.v) * d_t
+
+            # calculate current value of s along path we are
+            self.s += time_s_speed * d_t
+
+            # calc total length of current segment in units of s
+            curr_path_seg_total_s_len = self.path_s[self.curr_path_seg + 1] - \
+                self.path_s[self.curr_path_seg]
+
+            # convert current s value into position units
+            position = self.path[self.curr_path_seg] + (self.s - self.path_s[self.curr_path_seg])\
+                / curr_path_seg_total_s_len * self.curr_vec
+
+            pos.append([position[0], position[1]])
+            s_array.append(self.s)
+
+        pos = np.array(pos)
+
+        plt.figure(1)
+        plt.plot(np.arange(0.0, max_time, d_t), s_array)
+        plt.xlabel('Time (sec)')
+        plt.ylabel('Percent Along Path')
+        plt.show()
+
+        return pos
+
 #    def determine_waypoint(self, t, path_length_vehicle_1):
     def determine_waypoint(self, t):
         """
@@ -124,8 +180,6 @@ class PathTrajectory:
 
         # calculate current velocity of vehicle
 #        vel = time_s_speed * self.velocity_car_1 * self.total_path_length / path_length_vehicle_1
-        print(self.total_path_length)
-        print(self.total_time)
         vel = time_s_speed * self.total_path_length / self.total_time
 
         return pos[0], pos[1], vel
@@ -157,6 +211,7 @@ class PathTrajectory:
         restore the parameters for future calculations
         """
         self.s = 0
+        self.v = 0
         self.curr_path_seg = 0
         self.curr_s_seg = 0
         self.curr_vec = np.array(self.path[1] - self.path[0])
