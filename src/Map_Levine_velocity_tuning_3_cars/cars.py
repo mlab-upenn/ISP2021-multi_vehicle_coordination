@@ -422,7 +422,7 @@ def execute_pure_pursuit(num, q, time_step):
     )
     obs, step_reward, done, info = env.reset(
         np.array(
-            [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta], [conf.car3x, conf.car3y, conf.car3theta]]
+            [[conf.car1x, conf.car1y, conf.car1theta], [conf.car2x, conf.car2y, conf.car2theta], [conf.car3x, conf.car3y, conf.car3theta]]
         )
     )
     env.render()
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     )
     obs, step_reward, done, info = env.reset(
         np.array(
-            [[conf.sx, conf.sy, conf.stheta], [conf.oppx, conf.oppy, conf.opptheta], [conf.car3x, conf.car3y, conf.car3theta]]
+            [[conf.car1x, conf.car1y, conf.car1theta], [conf.car2x, conf.car2y, conf.car2theta], [conf.car3x, conf.car3y, conf.car3theta]]
         )
     )
 

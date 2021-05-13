@@ -8,16 +8,16 @@ map_path: './levine_blocked'
 map_ext: '.pgm'
 
 # starting pose for map
-sx: -5.0
-sy: -0.35
-stheta: 0.0
+car1x: -5.0
+car1y: -0.0
+car1theta: 0.0
 
-oppx: -5.0
-oppy: 0.0
-opptheta: 0.0
+car2x: -3.5
+car2y: 0.0
+car2theta: 0.0
 
-car3x: -5.0
-car3y: 0.35
+car3x: -2.0
+car3y: 0.0
 car3theta: 0.0
 
 # raceline path and indices

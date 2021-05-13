@@ -1,0 +1,4 @@
+pyzmq
+cvxpy
+numpy
+matplotlib

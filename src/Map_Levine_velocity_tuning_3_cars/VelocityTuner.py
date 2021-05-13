@@ -144,23 +144,23 @@ class VelocityTuner:
 
         self.vec_plan_space = np.array(self.vec_plan_space)
         # time-s figure
-        if len(self.vec_plan_space) > 0:
-            plt.figure(2)
-            plt.plot(self.vec_plan_space[:, 0], self.vec_plan_space[:, 1], 'b.')
-            plt.plot(np.arange(0, float(self.max_time), self.time_step), s.value)
-            plt.axis([0, self.max_time, 0, 1])
-            plt.xlabel('Time (sec)')
-            plt.ylabel('Percent Along Path')
-            plt.title('Velocity Planning Obstacles for Car '+str(car_idx+1))
-            plt.show()
-            plt.figure(3)
-            plt.plot(np.arange(0, float(self.max_time - self.time_step), self.time_step), v_targeted.value)
-            plt.plot(np.arange(0, float(self.max_time), self.time_step), v_true.value)
-            plt.xlabel('Time (sec)')
-            plt.ylabel('Target and true velocity')
-            plt.show()
-        else:
-            print("No collisions along path")
+#        if len(self.vec_plan_space) > 0:
+#            plt.figure(2)
+#            plt.plot(self.vec_plan_space[:, 0], self.vec_plan_space[:, 1], 'b.')
+#            plt.plot(np.arange(0, float(self.max_time), self.time_step), s.value)
+#            plt.axis([0, self.max_time, 0, 1])
+#            plt.xlabel('Time (sec)')
+#            plt.ylabel('Percent Along Path')
+#            plt.title('Velocity Planning Obstacles for Car '+str(car_idx+1))
+#            plt.show()
+#            plt.figure(3)
+#            plt.plot(np.arange(0, float(self.max_time - self.time_step), self.time_step), v_targeted.value)
+#            plt.plot(np.arange(0, float(self.max_time), self.time_step), v_true.value)
+#            plt.xlabel('Time (sec)')
+#            plt.ylabel('Target and true velocity')
+#            plt.show()
+#        else:
+#            print("No collisions along path")
         self.vec_plan_space = []
 
     def calculate_trajectory(self, car1_vel):
